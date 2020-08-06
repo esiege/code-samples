@@ -1,0 +1,96 @@
+        var maxDepthReassembly = 3;
+
+				var plural = function (attr) {
+					owl.pluralize(attr);
+				}
+
+				var response = function (data) {
+					if (!data[primaryModel]) {
+						callback([]);
+						return;
+					}
+
+					var loadSingleValueObjects = function (base, obj, currentDepth) {
+						for (var i = 0; i < obj.length; i++) {
+							for (var attr in obj[i]) {
+								if (attr != 'id' && attr.substring(attr.length - 2, attr.length) === 'Id') {
+									var attrObjName = attr.substring(0, attr.length - 2);
+									var attrObjs = _.where(data[attrObjName], { id: obj[i][attr] });
+
+									if (attrObjs.length == 1) {
+										loadObjects(attrObjName, attrObjs, currentDepth + 1);
+										obj[i][attrObjName] = clone(attrObjs[0]);
+										//console.log(i + ": " + base + " -> " + attrObjName);
+									}
+								}
+							}
+						}
+					}
+
+					var loadMultiValueObjects = function (base, obj, currentDepth) {
+						for (var j = 0; j < obj.length; j++) {
+							for (var attr in data) {
+								for (var i = 0; i < data[attr].length; i++) {
+									for (var prop in data[attr][i]) {
+										if (prop === base + 'Id') {
+
+											if (obj[j][plural(attr)] == null) {
+
+												var vals = _.filter(data[attr], function (val) { return obj[j].id === val[base + 'Id'] });
+
+												if (vals.length) {
+													obj[j][plural(attr)] = clone(vals);
+													if (attr != base) {
+														loadObjects(attr, obj[j][plural(attr)], currentDepth + 1);
+														//console.log(i + ": " + base + " -> " + plural);
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+
+					var loadSpecialKeyObjects = function (base, obj, firstKey, secondKey, table, subtable) {
+						if (base == primaryModel)
+							for (var i = 0; i < obj.length; i++) {
+								var vals;
+								var obRef = obj[i];
+								if (subtable)
+									obRef = obj[i][subtable];
+
+								if (obRef) {
+
+									if (secondKey)
+										vals = _.filter(data[table], function (val) { return val[firstKey + 'Id'] === obj[i][firstKey + 'Id'] && val[secondKey + 'Id'] === obj[i][secondKey + 'Id'] });
+									else
+										vals = _.filter(data[table], function (val) { return val[firstKey + 'Id'] === obRef['id'] });
+
+									if (subtable) {
+										obRef[plural(table)] = clone(vals);
+										loadSingleValueObjects(table, obRef[plural(table)]);
+									}
+									else
+										obRef[plural(table)] = clone(vals);
+								}
+							}
+					}
+
+					var loadObjects = function (base, obj, currentDepth) {
+
+						if (currentDepth > maxDepthReassembly)
+							return;
+
+						loadSingleValueObjects(base, obj, currentDepth);
+						loadMultiValueObjects(base, obj, currentDepth);
+					}
+
+					loadObjects(primaryModel, data[primaryModel], 0);
+					for (var j = 0; specialKeys != null && j < specialKeys.length; j++) {
+						loadSpecialKeyObjects(primaryModel, data[primaryModel], specialKeys[j].firstKey, specialKeys[j].secondKey, specialKeys[j].table, specialKeys[j].subtable, specialKeys[j].subtable2);
+					}
+
+					//console.log(data[primaryModel]);
+					callback(data[primaryModel]);
