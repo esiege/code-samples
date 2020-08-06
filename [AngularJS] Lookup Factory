@@ -1,0 +1,119 @@
+'use strict';
+
+define(['app'], function (app) {
+
+	app.factory('lookupFactory', ['$http', function ($http) {
+
+		var preloadTypes = [
+			"States",
+			"Countries",
+			"Genders",
+			"Tribes",
+			"CustomerStatusTypes",
+			"FalconerClassTypes",
+			"AddressTypes",
+			"PhoneNumberTypes",
+			"ContactTypes",
+			"FurtakerBrandStatusTypes",
+			"FalconerStatusTypes",
+			"GoldenEagleStatusTypes",
+			"DealerReportingStatusTypes",
+			"DocumentTypes",
+			"DocumentClasses",
+			"DocumentCategories",
+			"DocumentStatusTypes",
+			"DocumentActionTypes",
+			"DocumentActionTypeReasons",
+			"Ports",
+			"BondTypes",
+            "Species",
+			"OregonCounties",
+			"VesselStatusTypes",
+			"FishSpecies",
+			"SuspendingAgencyTypes",
+			"SuspensionStatutes",
+			"SuspensionTypes",
+			"SuspensionReasons",
+			"OfficeLocations",
+			"FurtakerSheetTypes"
+		];
+
+		var serviceBase = '../commerciallicensingapi/api/';
+		var lookups = new Array();
+		var errorOccured = false;
+
+		var assembleApiString = function (types) {
+			var returnString = "?";
+			for (var i = 0; i < types.length; i++) {
+				returnString += "paramList=" + types[i];
+
+				if (i < types.length - 1)
+					returnString += "&";
+			}
+			return returnString;
+		};
+
+		var lookupCallbacks = {};
+		var lookupCallbacksById = {};
+
+		$http.get(serviceBase + "TypeLoader/GetLookups" + assembleApiString(preloadTypes)).success(function (data) {
+			for (var i = 0; i < data.length; i++) {
+				lookups[data[i].name] = data[i].values;
+			}
+
+			for (var type in lookupCallbacks) {
+				for (var j = 0; j < lookupCallbacks[type].length; j++) {
+					lookupCallbacks[type][j](lookups[type]);
+				}
+			}
+		}).error(function (data) {
+			console.error(data.exceptionMessage);
+			errorOccured = true;
+		});
+
+		return {
+			get: function (typeName, callback) {
+				typeName = typeName.substring(0, 1).toUpperCase() + typeName.substring(1, typeName.length);
+				if (!_.contains(preloadTypes, typeName))
+					callback(null);
+				if (!lookups[typeName]) {
+					if (!lookupCallbacks[typeName])
+						lookupCallbacks[typeName] = [];
+					lookupCallbacks[typeName].push(callback);
+				}
+				else {
+					callback(lookups[typeName]);
+				}
+			},
+			getById: function (typeName, id, callback) {
+				typeName = typeName.substring(0, 1).toUpperCase() + typeName.substring(1, typeName.length);
+				if (!lookups[typeName + id]) {
+					if (!lookupCallbacksById[typeName + id])
+						lookupCallbacksById[typeName + id] = [];
+					lookupCallbacksById[typeName + id].push(callback);
+
+					if (!errorOccured)
+						$http.get(serviceBase + "TypeLoader/GetLookupsById?paramList=" + typeName + "&id=" + id).success(function (data) {
+							for (var i = 0; i < data.length; i++) {
+								lookups[data[i].name + data[i].values[0].id] = data[i].values;
+							}
+
+							for (var type in lookupCallbacksById) {
+								for (var j = 0; j < lookupCallbacksById[type].length; j++) {
+									if (lookups[type])
+										lookupCallbacksById[type][j](lookups[type]);
+								}
+							}
+						}).error(function (data) {
+							console.error(data.exceptionMessage);
+							errorOccured = true;
+						});
+				}
+				else {
+					callback(lookups[typeName + id]);
+				}
+			}
+		};
+
+	}]);
+});
