@@ -1,1 +1,21 @@
-test
+
+                var LdapDomain = "odfw.int";
+
+                if (loginPostData.Username.Substring(0, 5).ToUpper() != "ODFW\\")
+                    loginPostData.Username = "ODFW\\" + loginPostData.Username;
+
+                string connectionPrefix = "LDAP://" + LdapDomain;
+                DirectoryEntry entry = new DirectoryEntry(connectionPrefix, loginPostData.Username, loginPostData.Password);
+                object nativeObject = entry.NativeObject;
+                authenticated = true;
+
+                PrincipalContext anotherDomainContext = new PrincipalContext(ContextType.Domain, LdapDomain, "DC=ODFW", ContextOptions.SimpleBind, loginPostData.Username, loginPostData.Password);
+
+                UserPrincipal user = UserPrincipal.FindByIdentity(anotherDomainContext, IdentityType.SamAccountName, loginPostData.Username);
+
+                PrincipalSearchResult<Principal> searchResults = user.GetGroups();
+                List<GroupPrincipal> groupsList = searchResults.Select(result => result as GroupPrincipal).
+                            Where(group => (group != null) &&
+                                           (group.IsSecurityGroup.HasValue) &&
+                                           (group.IsSecurityGroup.Value)).ToList();
+
