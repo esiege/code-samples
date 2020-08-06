@@ -1,5 +1,8 @@
         
+        //this uses a table (mapped to DataGrokEntities.Routes) that has two columns, a route column with a value that is translated into a url parameter
+        //and a query column, which contains a query that is executed upon visiting said route column.  
         
+        //This allows for an api endpoint to be created and maintained using only sql table edits, while still negating SQL injection attacks
         
         
         public dynamic Get(string url)
