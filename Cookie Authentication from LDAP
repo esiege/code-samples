@@ -1,7 +1,3 @@
-   var LdapDomain = "odfw.int";
-
-                if (loginPostData.Username.Substring(0, 5).ToUpper() != "ODFW\\")
-                    loginPostData.Username = "ODFW\\" + loginPostData.Username;
 
                 string connectionPrefix = "LDAP://" + LdapDomain;
                 DirectoryEntry entry = new DirectoryEntry(connectionPrefix, loginPostData.Username, loginPostData.Password);
