@@ -1,0 +1,260 @@
+
+    [AllowCrossSiteJsonAttribute]
+    public class PrintController : ApiController
+    {
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool LogonUser(String lpszUsername, String lpszDomain, String lpszPassword,
+            int dwLogonType, int dwLogonProvider, out SafeTokenHandle phToken);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        public extern static bool CloseHandle(IntPtr handle);
+
+        #region Class Variables
+
+        private static string server = "localhost";
+        private static string xml;
+
+        #endregion
+
+        #region Public Methods
+
+        // POST api/values
+
+        public string Post([FromBody] string value, string printerName, int documentPrintXmlHistoryId = 0)
+        {
+                var printMethod = "RawPrinter";
+                string statusMessage;
+                switch (printMethod)
+                {
+                    case "PrintDocument":
+                        statusMessage = BeginPrintPrintDocument(value, printerName).ToString();
+                        break;
+                    case "CommandLine":
+                        statusMessage = BeginPrintCommandLine().ToString();
+                        break;
+                    case "RawPrinter":
+                        statusMessage = BeginPrintRawPrinter(value, printerName);
+                        break;
+                    case "PrintJob":
+                        statusMessage = BeginPrintPrintJob(value, printerName).ToString();
+                        break;
+                    default:
+                        statusMessage = BeginPrintRawPrinter(value, printerName);
+                        break;
+                }
+
+
+            try
+            {
+                using (var ctx = new OptioPrintLogEntities())
+                {
+                    PrintLog printLog = new PrintLog();
+                    try
+                    {
+                        List<string> printerStatus = GetPrinterStatusInfo("CLlicense");
+                        printLog.CommLic_DocumentPrintXmlHistoryId = documentPrintXmlHistoryId;
+                        printLog.PrinterName = printerName;
+                        printLog.StatusMessage = statusMessage;
+                        printLog.PrinterStatus = string.Join(" | ", printerStatus);
+                        printLog.TransactionDate = DateTime.Now;
+                        printLog.XML = value;
+                        printLog.User = User.Identity.Name;
+                        ctx.PrintLogs.Add(printLog);
+
+                        ctx.SaveChanges();
+                    }
+                    catch (Exception ex)
+                    {
+                        printLog.CommLic_DocumentPrintXmlHistoryId = documentPrintXmlHistoryId;
+                        printLog.PrinterName = printerName;
+                        printLog.StatusMessage = statusMessage;
+                        printLog.PrinterStatus = ex.Message;
+                        printLog.TransactionDate = DateTime.Now;
+                        printLog.XML = value;
+                        printLog.User = User.Identity.Name;
+
+                        ctx.SaveChanges();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+             
+            }
+            return statusMessage;
+        }
+
+        public List<string> Get()
+        {
+            return GetPrinterStatusInfo(null);
+        }
+
+        public List<string> GetPrinterStatusInfo(string printerName)
+        {
+            PrintServer printSvr = new LocalPrintServer();// PrintServer(@"\\" + server);
+            PrintQueueCollection printQues = printSvr.GetPrintQueues();
+
+            List<string> results = new List<string> { };
+
+            foreach (PrintQueue pq in printQues)
+            {
+                if (printerName == null || printerName == pq.Name)
+                {
+                    foreach (var prop in pq.GetType().GetProperties())
+                    {
+                        results.Add(prop.Name + ": " + prop.GetValue(pq, null));
+                    }
+                }
+            }
+
+            if (results.Count == 0)
+            {
+                results.Add("Printer: " + "'" + printerName + "'" + " not found");
+            }
+
+            return results;
+        }
+
+        public string Options()
+        {
+            return null; // HTTP 200 response with empty body
+        }
+
+        private int BeginPrintPrintDocument(string value, string printerName)
+        {
+            xml = value;
+            PrintDocument printDocument = new PrintDocument();
+            printDocument.PrinterSettings.PrinterName = @"\\" + server + "\\" + printerName;
+            printDocument.PrintPage += new PrintPageEventHandler(this.PrintDocumentPrintPage);
+            printDocument.Print();
+
+            return 1;
+        }
+
+        private void PrintDocumentPrintPage(object sender, PrintPageEventArgs ev)
+        {
+            List<string> xmlElements = new List<string> { };
+            int last = 0;
+            for (int i = 1; i < xml.Length; i++)
+            {
+                if (xml[i - 1] == '>' || xml[i] == '<')
+                {
+                    xmlElements.Add(xml.Substring(last, i - last));
+                    last = i;
+                }
+            }
+            xmlElements.Add(xml.Substring(last, xml.Length - last));
+
+            string textToWrite = "";
+            bool openEle = false;
+            int line = 0;
+            foreach (var xmlEle in xmlElements)
+            {
+                textToWrite = string.Concat(textToWrite, xmlEle);
+                if (xmlEle.Length > 2 && xmlEle.Substring(0, 2) == "</")
+                {
+                    ev.Graphics.DrawString(textToWrite, new Font("Arial", 1), Brushes.Black, 0, line, new StringFormat());
+                    line++;
+                    textToWrite = "";
+                    openEle = false;
+                }
+                else if (xmlEle.Length > 2 && xmlEle.Substring(0, 1) == "<")
+                {
+                    if (openEle)
+                    {
+                        ev.Graphics.DrawString(textToWrite, new Font("Arial", 1), Brushes.Black, 0, line, new StringFormat());
+                        line++;
+                        textToWrite = "";
+                        openEle = false;
+                    }
+                    else
+                        openEle = true;
+                }
+            }
+        }
+
+        private int BeginPrintCommandLine()
+        {
+            ExecuteCommand("copy C:\\xmlresult1.xml \\\\adoptio\\cllicense");
+            return 1;
+        }
+
+        static void ExecuteCommand(string command)
+        {
+            int exitCode;
+            ProcessStartInfo processInfo;
+            Process process;
+
+            processInfo = new ProcessStartInfo("cmd.exe", "/c " + command);
+            processInfo.CreateNoWindow = true;
+            processInfo.UseShellExecute = false;
+            // *** Redirect the output ***
+            processInfo.RedirectStandardError = true;
+            processInfo.RedirectStandardOutput = true;
+
+            process = Process.Start(processInfo);
+            process.WaitForExit();
+
+            // *** Read the streams ***
+            string output = process.StandardOutput.ReadToEnd();
+            string error = process.StandardError.ReadToEnd();
+
+            exitCode = process.ExitCode;
+
+            Console.WriteLine("output>>" + (String.IsNullOrEmpty(output) ? "(none)" : output));
+            Console.WriteLine("error>>" + (String.IsNullOrEmpty(error) ? "(none)" : error));
+            Console.WriteLine("ExitCode: " + exitCode.ToString(), "ExecuteCommand");
+            process.Close();
+        }
+
+        private string BeginPrintRawPrinter(string val, string printerName)
+        {
+            return RawPrinterHelper.SendStringToPrinter(printerName, val);
+        }
+
+        private int BeginPrintPrintJob(string val, string printerName)
+        {
+            PrintServer printServer = new PrintServer(@"\\" + server);
+            var v = printServer.MajorVersion;
+            PrintQueue printQueue = printServer.GetPrintQueue(printerName);
+            var spec = printQueue.GetPrintCapabilitiesAsXml();
+            try
+            {
+                PrintSystemJobInfo myPrintJob = printQueue.AddJob();
+                Stream myStream = myPrintJob.JobStream;
+                Byte[] myByteBuffer = UnicodeEncoding.Unicode.GetBytes(val);
+                myStream.Write(myByteBuffer, 0, myByteBuffer.Length);
+                myStream.Close();
+
+                myPrintJob.Commit();
+                return 1;
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+        }
+        #endregion
+    }
+
+    public sealed class SafeTokenHandle : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        private SafeTokenHandle()
+            : base(true)
+        {
+        }
+
+        [DllImport("kernel32.dll")]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        protected override bool ReleaseHandle()
+        {
+            return CloseHandle(handle);
+        }
+    }
+
