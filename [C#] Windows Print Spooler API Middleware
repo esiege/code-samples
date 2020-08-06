@@ -332,8 +332,8 @@
 			if (bSuccess == false)
 			{
 				dwError = Marshal.GetLastWin32Error();
-                string errorMessage = new Win32Exception(dwError).Message;
-                return errorMessage;
+				string errorMessage = new Win32Exception(dwError).Message;
+				return errorMessage;
 			}
 			return "Sent to printer.";
 		}
