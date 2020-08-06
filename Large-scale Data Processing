@@ -1,0 +1,731 @@
+
+	SET NOCOUNT ON;
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+
+	
+	--Description:
+	-- Export for SFMA IBM Main (DAS) which reads input based on character positions (750 per line);
+	-- which is why the number of characters for each variable below is crucial.
+	-- output file is created via powershell, AND includes both header AND transactions
+	-- in the same file, with no headers.
+	
+	----DEBUG Powershell Export (ASCII no delimiter)
+		-- Invoke-Sqlcmd -ServerInstance "localhost" -Database "master" -Query "EXEC [dbo].[SFMA_Interface] @QueryDate = '11/27/2018', @Header = 1" | ConvertTo-Csv -NoTypeInformation -Delimiter "," | Select-Object -Skip 1 | % {$_ -replace ","} | % {$_ -replace '"', ""} | Out-File ("\\fwhqd\home\swartzje\My Documents\testHeader") -Force -Encoding ascii
+		-- Invoke-Sqlcmd -ServerInstance "localhost" -Database "master" -Query "EXEC [dbo].[SFMA_Interface] @QueryDate = '11/27/2018', @Header = 0" | ConvertTo-Csv -NoTypeInformation -Delimiter "," | Select-Object -Skip 1 | % {$_ -replace ","} | % {$_ -replace '"', ""} | Out-File ("\\fwhqd\home\swartzje\My Documents\testTrans") -Force -Encoding ascii
+	
+	DECLARE @ShowDebugInfo BIT
+	SET @ShowDebugInfo = @DebugOnly
+
+	----DEBUG Local Variables
+		 --DECLARE @QueryDate DATE
+		 --SET @QueryDate = '4/8/2020'
+		 --DECLARE @Header BIT
+		 --SET @Header = NULL
+		 --SET @ShowDebugInfo = 1
+
+		declare @HeaderResults table (
+			[BatchAgency]							NCHAR(3), --  1 - 3
+			[BatchDate]								NCHAR(8), --  4 - 11
+			[BatchType]								NCHAR(1), -- 12
+			[BatchNumber]							NCHAR(3), -- 13 - 15
+			[BatchSeqNumber]						NCHAR(5), -- 16 - 20
+			[BatchOperatorId]						NCHAR(8), -- 21 - 28
+			[BatchOperatorName]						NCHAR(20),-- 29 - 48
+			[BatchOperatorClass]					NCHAR(2), -- 49 - 50 
+			[BatchTerminalIdentification]			NCHAR(4), -- 51 - 54
+			[EffectiveDate]							NCHAR(8), -- 55 - 62
+			[DisbursementMethodIndicator]			NCHAR(1), -- 63
+			[PaymentDistributionType]				NCHAR(2), -- 64 - 65
+			[FastEntry]								NCHAR(1), -- 66
+			[BatchDocumentHoldFlag]					NCHAR(1), -- 67
+			[BatchCountEntered]						NCHAR(1), -- 68
+			[BatchStatus]							NCHAR(1), -- 69
+			[BatchHeaderCountSwitch]				NCHAR(1), -- 70
+			[BatchLastSequenceNumberUsed]			NCHAR(5), -- 71 - 75
+			[BatchSystemDate]						NCHAR(5), -- 76 - 80
+			[BatchMasterFileIndicatorSwitch]		NCHAR(1), -- 81
+			[Filler]								NCHAR(7), -- 82 - 88
+			[EnteredBatchCountNumeric]				NCHAR(5), -- 89 - 93
+			[EnteredBatchAmountNumeric]				NCHAR(13),-- 94 - 106
+			[Filler_]								NCHAR(5), -- 107 - 111
+			[ComputedBatchCountNumeric]				NCHAR(5), -- 112 - 116
+			[ComputedBatchAmountNumeric]			NCHAR(13),-- 117 - 129
+			[ApprovalRequiredToPostIndicator]		NCHAR(1), -- 130
+			[AllDocumentsApproved]					NCHAR(1), -- 131
+			[Filler__]								NCHAR(619)-- 132 - 750
+			)
+
+		declare @TransactionResults table (
+			[BatchAgency]							NCHAR(3), --  1 - 3
+			[BatchDate]								NCHAR(8), --  4 - 11
+			[BatchType]								NCHAR(1), --  12
+			[BatchNumber]							NCHAR(3), -- 13 - 15
+			[BatchSeqNumber]						NCHAR(5), -- 16 - 20
+			[OperatorID]							NCHAR(8), -- 21 - 28
+			[TerminalIdentification]				NCHAR(4), -- 29 - 32
+			[EffectiveDate]							NCHAR(8), -- 33 - 40
+			[AppropriationYear]						NCHAR(2), -- 41 - 42
+			[DisbursementMethodIndicator]			NCHAR(1), -- 43
+			[CaptilizeIndicator]					NCHAR(1), -- 44
+			[TransactionCode]						NCHAR(3), -- 45 - 47
+			[Modifier]								NCHAR(1), -- 48
+			[Reverse]								NCHAR(1), -- 49
+			[Agency]								NCHAR(3), -- 50 - 52
+			[RecurringTransactionIndex]				NCHAR(6), -- 53 - 58
+			[Index]									NCHAR(5), -- 59 - 63
+			[AppropriationNumber]					NCHAR(5), -- 64 - 68
+			[Fund]									NCHAR(4), -- 69 - 72
+			[ProgramCostAccount]					NCHAR(5), -- 73 - 77
+			[ComptrollerObject]						NCHAR(4), -- 78 - 81
+			[AgencyObject]							NCHAR(4), -- 82 - 85
+			[ProjectNumber]							NCHAR(6), -- 86 - 91
+			[ProjectPhase]							NCHAR(6), -- 92 - 97
+			[GrantNumber]							NCHAR(6), -- 98 - 103
+			[GrantPhase]							NCHAR(2), -- 104 - 105
+			[SubGrantee]							NCHAR(9), -- 106 - 114
+			[AgencyCode1_Facility]					NCHAR(4), -- 115 - 118
+			[AgencyCode2_Task]						NCHAR(4), -- 119 - 122
+			[AgencyCode3_Location]					NCHAR(6), -- 123 - 128
+			[AgencyGeneralLedgerAccount]			NCHAR(8), -- 129 - 136
+			[MultipurposeCode]						NCHAR(11),-- 137 - 147
+			[GeneralLedgerAccount]					NCHAR(4), -- 148 - 151
+			[VendorNumber]							NCHAR(10),-- 152 - 161
+			[VendorSuffix]							NCHAR(3), -- 162 - 164
+			[1099Indicator]							NCHAR(1), -- 165
+			[InvoiceNumber]							NCHAR(14),-- 166 - 179
+			[InvoiceDate]							NCHAR(8), -- 180 - 187
+			[DocumentDate]							NCHAR(8), -- 188 - 195
+			[CurrentDocumentNumber]					NCHAR(8), -- 196 - 203
+			[CurrentDocumentSuffix]					NCHAR(3), -- 204 - 206
+			[ReferenceDocumentNumber]				NCHAR(8), -- 207 - 214
+			[ReferenceDocumentSuffix]				NCHAR(3), -- 215 - 217
+			[DueDate]								NCHAR(8), -- 218 - 225
+			[ServiceDate]							NCHAR(8), -- 226 - 233
+			[WarrentNumber]							NCHAR(9), -- 234 - 242
+			[PaymentDistributionType]				NCHAR(2), -- 243 - 244
+			[PropertyNumber]						NCHAR(10),-- 245 - 254
+			[GASB38TransferNumber]					NCHAR(9), -- 255 - 263
+			[FundControlOverrideFlag]				NCHAR(1), -- 264
+			[ContractNumber]						NCHAR(10),-- 265 - 274
+			[TransactionAmount]						NCHAR(13),-- 275 - 287
+			[DiscountAmount]						NCHAR(11),-- 288 - 298
+			[Filler]								NCHAR(2), -- 299 - 300
+			[Description]							NCHAR(30),-- 301 - 330
+			[CashReceiptPaymentOption]				NCHAR(1), -- 331
+			[BankNumber]							NCHAR(13),-- 332 - 344
+			[DiscountDate]							NCHAR(8), -- 345 - 352
+			[DiscountTerms]							NCHAR(2), -- 353 - 354
+			[PenaltyDate]							NCHAR(8), -- 355 - 362
+			[PenaltyTerms]							NCHAR(2), -- 363 - 364
+			[InterestTerms]							NCHAR(2), -- 365 - 366
+			[PenaltyAmount]							NCHAR(11),-- 367 - 377
+			[VendorName]							NCHAR(50),-- 378 - 427
+			[VendorAddressLine1]					NCHAR(50),-- 428 - 477
+			[VendorAddressLine2]					NCHAR(50),-- 478 - 527
+			[VendorAddressLine3]					NCHAR(50),-- 528 - 577
+			[VendorAddressLine4]					NCHAR(50),-- 578 - 627
+			[City]									NCHAR(20),-- 628 - 647
+			[State]									NCHAR(2), -- 648 - 649
+			[ZipCode]								NCHAR(7), -- 650 - 656
+			[Filler_]								NCHAR(7), -- 657 - 663
+			[DocAgency]								NCHAR(3), -- 664 - 666
+			[OriginalVendorNumber]					NCHAR(10),-- 667 - 676
+			[OriginalVendorSuffixAppnYearInputCCYY]	NCHAR(3), -- 677 - 679
+			[AppropriationYearFull]					NCHAR(4), -- 680 - 683
+			[Filler__]								NCHAR(44),-- 694 - 727
+			[UsedInternallyByR*StarsForCMIA]		NCHAR(23) -- 728 - 750
+	)		
+				
+	declare @Calculations table (
+		[sti_id] INT,
+		[p_code] VARCHAR (50),
+		[Product_Name] VARCHAR(255),
+		[Pricing_Type] VARCHAR(255),
+		[Mod_Date] DATETIME,
+		[pca_value] VARCHAR(75),
+		[amount] DECIMAL(18,2),
+		[NicDealerFee] DECIMAL(18,2),
+		[StateCommission] DECIMAL(18,2),
+		[DealerCommission] DECIMAL(18,2),
+		[p_id] INT,
+		[fsdi_id] INT,
+		[calculationId] INT,
+		[isPrimary] INT,
+		[DistributionAmount] DECIMAL(18,2),
+		[EffectiveDistributionAmount] DECIMAL(18,10),
+		[TransCount] INT,
+		[EffectiveAmount] DECIMAL(18,4),
+		[PartialCents] DECIMAL(18,18),
+		[PartialCentsDistributionAmount] DECIMAL(18,18),
+		[DistributionTotal] DECIMAL(18,10),
+		[DistributionTotalSum] DECIMAL(18,10),
+		[SalesChannelCode] VARCHAR(3)
+	)
+	
+	--check if data is cached
+	IF ((SELECT TOP 1 1 FROM SFMACalculations WHERE CAST([Mod_Date] AS DATE) = @QueryDate) IS NULL)
+	BEGIN		
+		--if no cache, update table to use as cache
+		INSERT INTO SFMACalculations
+		select distinct
+		   sti.id as sti_id
+		 , p.code as p_code
+		 , p.name as Product_Name
+		 , lu_pt.value as Pricing_Type
+		 , (SELECT SWITCHOFFSET(sti.LastModifiedDateUtc, DATEPART(TZOFFSET, sti.LastModifiedDateUtc AT TIME ZONE 'Pacific Standard Time'))) as Mod_Date
+		 , pca.value as pca_value
+		 , CAST((SELECT CASE WHEN lu_sc.[Key] = 'LA' THEN sti.extendedPrice - sti.NicDealerFee ELSE sti.extendedPrice END) AS DECIMAL(18,2)) AS Amount
+		 , CAST((SELECT CASE WHEN lu_sc.[Key] = 'LA' THEN sti.NicDealerFee ELSE 0 END) AS DECIMAL(18,2)) AS [NicDealerFee]
+		 , sti.StateCommission as StateCommission
+		 , sti.DealerCommission as DealerCommission
+		 , p.id as p_id
+		 , fsdi.id as fsdi_id
+		 , fsdi.calculationId as calculationId
+		 , fsdi.isPrimary
+		 , fsdi.amount as DistributionAmount
+		 , 0 as EffectiveDistributionAmount
+		 , null as TransCount
+		 , 0 as EffectiveAmount
+		 , 0 as PartialCents
+		 , 0 as PartialCentsDistributionAmount
+		 , 0 as DistributionTotal
+		 , 0 as DistributionTotalSum
+		 , lu_sc.[Key] as SalesChannelCode
+		FROM ELS_SS.Terra_Reports.dbo.SalesTransactionItem sti
+		join ELS_SS.Terra_Reports.dbo.Customer c on sti.CustomerId = c.Id 
+		join ELS_SS.Terra_Reports.dbo.Product p on p.Id = sti.ProductId 
+		join ELS_SS.Terra_Reports.dbo.Price pr on pr.ProductId = p.Id AND pr.pricingtypeid = sti.pricingtypeid
+		join ELS_SS.Terra_Reports.dbo.FundSourceDistribution fsd on pr.FundSourceDistributionId = fsd.Id 
+		join ELS_SS.Terra_Reports.dbo.FundSourceDistributionItem fsdi on fsd.Id = fsdi.FundSourceDistributionId
+		join ELS_SS.Terra_Reports.dbo.LU_calculationtype calc on calc.id = fsdi.calculationid
+		join ELS_SS.Terra_Reports.dbo.LU_pricingType lu_pt on lu_pt.id = sti.pricingtypeid
+		join ELS_SS.Terra_Reports.dbo.FundSourcePca fsp on fsp.FundSourceId = fsdi.FundSourceId
+		join ELS_SS.Terra_Reports.dbo.LU_Pca pca on fsp.PcaId = pca.Id
+		join ELS_SS.Terra_Reports.dbo.SalesTransaction st on sti.SalesTransactionId = st.Id
+		join ELS_SS.Terra_Reports.dbo.LU_SalesChannel lu_sc on st.SalesChannelId = lu_sc.id
+		WHERE sti.statusid != 1 AND sti.extendedPrice != 0 AND sti.isDeleted = 0 AND
+		@QueryDate = CONVERT(DATE, SWITCHOFFSET(sti.LastModifiedDateUtc, DATEPART(TZOFFSET, sti.LastModifiedDateUtc AT TIME ZONE 'Pacific Standard Time'))) 
+		
+		UPDATE SFMAConfigurations
+		SET LastQueryDates = @QueryDate
+
+	END
+
+	--retrieve data from cache table
+	INSERT INTO @Calculations
+	SELECT DISTINCT * FROM SFMACalculations
+	WHERE CAST([Mod_Date] AS DATE) = @QueryDate
+	
+	--change dealercommision to 0 for all LA SalesChannels (these are already being excluded from sti.extendedPrice and are not allocated to a PCA)
+	UPDATE d
+	set DealerCommission = 0
+	FROM @Calculations d
+	WHERE d.SalesChannelCode = 'LA'
+	
+
+	--add commission fees as fixed allocations
+	INSERT INTO @Calculations
+	SELECT DISTINCT 
+	d.sti_id, 
+	'0492' as p_code,
+	'Commission' as Product_Name,
+	'' as Pricing_Type,
+	Mod_Date,
+	'45031' as pca_value,
+	d.amount,
+	d.NicDealerFee,
+	0 as DealerCommission,
+	0 as StateCommission,
+	d.p_id as p_id,
+	0 as fsdi_id,
+	1 as calculationId,
+	0 as isPrimary,
+	d.StateCommission + d.DealerCommission as [DistributionAmount],
+	d.StateCommission + d.DealerCommission as [EffectiveDistributionAmount],
+	1 as TransCount,
+	d.StateCommission + d.DealerCommission as EffectiveAmount,	
+	0 as PartialCents,
+	0 as PartialCentsDistributionAmount,
+	d.StateCommission + d.DealerCommission as [DistributionTotal],
+	0 as DistributionTotalSum,
+	d.SalesChannelCode
+	FROM @Calculations d
+	
+	--flip flat allocations for negative amounts
+	UPDATE d
+	set DistributionAmount = -DistributionAmount
+	FROM @Calculations d
+	WHERE d.calculationid = 1 AND DistributionAmount > 0 AND amount < 0
+
+	
+	--set Effective Amount for percentage based allocations = amount remaining after fixed allocations have been made, 
+	UPDATE d
+	set EffectiveAmount = (amount - ISNULL((SELECT SUM(d2.DistributionAmount) FROM @Calculations d2 WHERE (d2.calculationid = 1 AND d2.sti_id = d.sti_id)),0))
+	FROM @Calculations d
+	WHERE d.calculationid = 2
+	--fallback
+	UPDATE d
+	set d.EffectiveAmount = amount
+	FROM @Calculations d
+	WHERE d.calculationid = 2 AND EffectiveAmount is null
+
+	--set Transaction Count = the amount of percentage based distributions that share the same allocation amount
+	UPDATE d
+	set TransCount = (SELECT COUNT(*) FROM @Calculations d2 WHERE (d2.sti_id = d.sti_id  AND d2.calculationid = 2))
+	FROM @Calculations d
+	WHERE d.calculationid = 2
+
+	--set Transaction Count = the amount of fixed allocations
+	UPDATE d
+	set TransCount = (SELECT COUNT(*) FROM @Calculations d2 WHERE (d2.sti_id = d.sti_id AND d2.calculationid = 1))
+	FROM @Calculations d
+	WHERE d.calculationid = 1
+
+	--set Distribution Value = the calculated numerical amount for the sum of all percentage based allocations
+	UPDATE d
+	set EffectiveDistributionAmount = DistributionAmount / (SELECT SUM(DistributionAmount) FROM @Calculations d2 WHERE (d2.sti_id = d.sti_id AND d.calculationid = 2 AND d2.calculationid = 2))
+	FROM @Calculations d
+	WHERE calculationid = 2
+	
+	--set Distribution Value = the calculated numerical amount for the sum of all percentage based allocations
+	UPDATE @Calculations 
+	set DistributionTotal = EffectiveAmount * EffectiveDistributionAmount
+	WHERE calculationid = 2
+
+	--set Distribution Total for flat allocations - carry over amount
+	UPDATE @Calculations 
+	set DistributionTotal = DistributionAmount
+	WHERE calculationid = 1
+
+	--get partial cents that result from previous divisions
+	UPDATE d
+	set PartialCents = (d.DistributionTotal - ROUND(d.DistributionTotal, 2, 1))
+	FROM @Calculations d
+	
+	--set Distribution Totals = rounded to cent value
+	UPDATE d
+	set DistributionTotal = ROUND(d.DistributionTotal,2,1)
+	FROM @Calculations d
+	
+	--in the case that there are no 'isPrimary' flags on percentage based allocations, use the allocation with the lowest pca_value as a primary - set the 'isPrimary' flag
+	UPDATE d
+	set d.isPrimary = 1
+	FROM @Calculations d
+	WHERE 
+	(SELECT COUNT(*) FROM @Calculations d2 WHERE (d2.sti_id = d.sti_id AND d2.isPrimary = 1 AND d2.calculationId = 2)) = 0 AND --no primary flag on calculationId = 2 in transaction
+	d.pca_value = (SELECT MIN(d3.pca_value) FROM @Calculations d3 WHERE d3.calculationid = 2 AND d3.sti_id = d.sti_id) --lowest pca value
+	
+	--add lost 'partial' cents that are lost from division to the primary pca with the lowest pca value
+	UPDATE d
+	set PartialCentsDistributionAmount = ROUND((SELECT SUM(PartialCents) FROM @Calculations d2 WHERE (d2.sti_id = d.sti_id)),2)
+	FROM @Calculations d
+	WHERE d.isPrimary = 1 AND 
+	d.pca_value = (SELECT MIN(d2.pca_value) FROM @Calculations d2 WHERE d2.isPrimary = 1 AND d2.calculationid = 2 AND d2.sti_id = d.sti_id)
+	
+	--move the partial cents we calculated back to the grand total
+	UPDATE d
+	set DistributionTotal = DistributionTotal + PartialCentsDistributionAmount 
+	FROM @Calculations d
+	WHERE PartialCentsDistributionAmount != 0
+	
+	--set Distribution Totals = rounded to cent value now that partial cents have been allocated
+	UPDATE d
+	set DistributionTotal = ROUND(d.DistributionTotal,2,1)
+	FROM @Calculations d
+
+	--DEBUG - get calc table here for final calculations
+	IF @ShowDebugInfo = 1
+		update c
+		set DistributionTotalSum = (SELECT SUM(DistributionTotal) FROM @Calculations c2 WHERE c2.sti_id = c.sti_id )
+		from @Calculations c
+	IF @ShowDebugInfo = 1
+		select * from @Calculations
+	
+	--DEBUG - calc table vs salestransactionitem comparison
+	--IF @ShowDebugInfo = 1
+	--	select sti_id, p_code, ISNULL(sum(DistributionTotal),0) as calc, 
+	--	(SELECT (CAST((SELECT CASE WHEN SalesChannelCode = 'LA' THEN sti.extendedPrice - sti.NicDealerFee ELSE sti.extendedPrice END) AS DECIMAL(18,2)))from ELS_SS.Terra_Reports.dbo.SalesTransactionItem sti where sti.id = sti_id) as [tran] 
+	--	from @Calculations
+	--	group by sti_id, p_code, SalesChannelCode
+
+		
+	IF @DebugOnly = 1
+	RETURN 
+
+
+   --MAIN TRANSACTION RESULTS
+	insert into @TransactionResults
+	SELECT 
+	'635' as BatchAgency,
+	CONVERT(varchar, CAST(Mod_Date AS DATE), 112) as BatchDate,
+	'2' as BatchType,
+	0 as BatchNumber,
+	0 as BatchSeqNumber,
+	'INT635EL' as OperatorId,
+	'' as TerminalIdentification,
+	CONVERT(varchar, CAST(Mod_Date AS DATE), 112) as EffectiveDate, 
+	'**' as AppropriationYear,
+	'' as DisbursementMethodIndicator,
+	'' as CaptilizeIndicator,
+	'408' as TransactionCode,
+	'' as Modifier,
+	'' as Reverse,
+	'635' as Agency,
+	'' as RecurringTransactionIndex,
+	'04350' as [Index],
+	'' as AppropriationNumber,
+	'' as Fund,
+	pca_value as ProgramCostAccount,
+	'' as ComptrollerObject,
+	LEFT(SUBSTRING(p_code, PATINDEX('%[0-9.-]%', p_code), 8000),PATINDEX('%[^0-9.-]%', SUBSTRING(p_code, PATINDEX('%[0-9.-]%', p_code), 8000) + 'X') -1) as AgencyObject,
+	'' as ProjectNumber,
+	'' as ProjectPhase,
+	'' as GrantNumber,
+	'' as GrantPhase,
+	'' as SubGrantee,
+	'' as AgencyCode1_Facility,
+	'' as AgencyCode2_Task,
+	'' as AgencyCode3_Location,
+	'' as AgencyGeneralLedgerAccount,
+	'' as MultipurposeCode,
+	'' as GeneralLedgerAccount,
+	'' as VendorNumber,
+	'' as VendorSuffix,
+	'' as [1099Indicator],
+	'' as InvoiceNumber,
+	'' as InvoiceDate,
+	'' as DocumentDate,
+	0 as CurrentDocumentNumber, --BI0001, -> next batch BI0002
+	0 as CurrentDocumentSuffix, -- increment for each transaction, MAX BATCH SIZE 999
+	'' as ReferenceDocumentNumber,
+	'' as ReferenceDocumentSuffix,
+	'' as DueDate,
+	'' as ServiceDate,
+	'' as WarrentNumber,
+	'' as PaymentDistributionType,
+	'' as PropertyNumber,
+	'' as GASB38TransferNumber,
+	'' as FundControlOverrideFlag,
+	'' as ContractNumber,
+	FORMAT(CAST(SUM(DistributionTotal)*100 AS BIGINT),'000000000000#') as TransactionAmount,
+	'' as DiscountAmount,
+	'' as Filler,
+	'ELS DISTRIBUTION ' + CONVERT(VARCHAR, CAST(Mod_Date AS DATE)) as Description,
+	'' as CashReceiptPaymentOption,
+	'' as BankNumber,
+	'' as DiscountDate,
+	'' as DiscountTerms,
+	'' as PenaltyDate,
+	'' as PenaltyTerms,
+	'' as InterestTerms,
+	'' as PenaltyAmount,
+	'' as VendorName,
+	'' as VendorAddressLine1,
+	'' as VendorAddressLine2,
+	'' as VendorAddressLine3,
+	'' as VendorAddressLine4,
+	'' as City,
+	'' as State,
+	'' as ZipCode,
+	'' as Filler_,
+	'635' as DocAgency,
+	'' as OriginalVendorNumber,
+	'' as OriginalVendorSuffixAppnYearInputCCYY,
+	CASE WHEN YEAR(CAST(Mod_Date AS DATE)) % 2 = 1 THEN
+		CASE WHEN MONTH(CAST(Mod_Date AS DATE)) < 7 THEN
+			(YEAR(CAST(Mod_Date AS DATE))) --BEFORE 7/1/20XX && YEAR IS ODD
+		ELSE 
+			(YEAR(CAST(Mod_Date AS DATE))+2) --AFTER 7/1/20XX && YEAR IS ODD
+		END
+	ELSE 
+		(YEAR(CAST(Mod_Date AS DATE))+1) --YEAR IS EVEN
+	END as AppropriationYearFull,
+	'' as Filler__,
+	'' as [UsedInternallyByR*StarsForCMIA]
+	from @Calculations
+	WHERE DistributionTotal > 0
+	group by p_code, pca_value, p_id, CAST(Mod_Date AS DATE)
+	order by p_code
+
+	--Negative values (refunds/cancels)
+	insert into @TransactionResults
+	SELECT 
+	'635' as BatchAgency,
+	CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) as BatchDate,
+	'2' as BatchType,
+	0 as BatchNumber,
+	0 as BatchSeqNumber,
+	'INT635EL' as OperatorId,
+	'' as TerminalIdentification,
+	CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) as EffectiveDate, 
+	'**' as AppropriationYear,
+	'' as DisbursementMethodIndicator,
+	'' as CaptilizeIndicator,
+	'408' as TransactionCode,
+	'' as Modifier,
+	'R' as Reverse,
+	'635' as Agency,
+	'' as RecurringTransactionIndex,
+	'04350' as [Index],
+	'' as AppropriationNumber,
+	'' as Fund,
+	pca_value as ProgramCostAccount,
+	'' as ComptrollerObject,
+	LEFT(SUBSTRING(p_code, PATINDEX('%[0-9.-]%', p_code), 8000),PATINDEX('%[^0-9.-]%', SUBSTRING(p_code, PATINDEX('%[0-9.-]%', p_code), 8000) + 'X') -1) as AgencyObject,
+	'' as ProjectNumber,
+	'' as ProjectPhase,
+	'' as GrantNumber,
+	'' as GrantPhase,
+	'' as SubGrantee,
+	'' as AgencyCode1_Facility,
+	'' as AgencyCode2_Task,
+	'' as AgencyCode3_Location,
+	'' as AgencyGeneralLedgerAccount,
+	'' as MultipurposeCode,
+	'' as GeneralLedgerAccount,
+	'' as VendorNumber,
+	'' as VendorSuffix,
+	'' as [1099Indicator],
+	'' as InvoiceNumber,
+	'' as InvoiceDate,
+	'' as DocumentDate,
+	0 as CurrentDocumentNumber, --BI0001, -> next batch BI0002
+	0 as CurrentDocumentSuffix, -- increment for each transaction, MAX BATCH SIZE 999
+	'' as ReferenceDocumentNumber,
+	'' as ReferenceDocumentSuffix,
+	'' as DueDate,
+	'' as ServiceDate,
+	'' as WarrentNumber,
+	'' as PaymentDistributionType,
+	'' as PropertyNumber,
+	'' as GASB38TransferNumber,
+	'' as FundControlOverrideFlag,
+	'' as ContractNumber,
+	FORMAT(CAST(SUM(DistributionTotal)*(-100) AS BIGINT),'000000000000#') as TransactionAmount,
+	'' as DiscountAmount,
+	'' as Filler,
+	'ELS DISTRIBUTION ' + CONVERT(VARCHAR, CAST(Mod_Date AS DATE)) as Description,
+	'' as CashReceiptPaymentOption,
+	'' as BankNumber,
+	'' as DiscountDate,
+	'' as DiscountTerms,
+	'' as PenaltyDate,
+	'' as PenaltyTerms,
+	'' as InterestTerms,
+	'' as PenaltyAmount,
+	'' as VendorName,
+	'' as VendorAddressLine1,
+	'' as VendorAddressLine2,
+	'' as VendorAddressLine3,
+	'' as VendorAddressLine4,
+	'' as City,
+	'' as State,
+	'' as ZipCode,
+	'' as Filler_,
+	'635' as DocAgency,
+	'' as OriginalVendorNumber,
+	'' as OriginalVendorSuffixAppnYearInputCCYY,
+	CASE WHEN YEAR(CAST(Mod_Date AS DATE)) % 2 = 1 THEN
+		CASE WHEN MONTH(CAST(Mod_Date AS DATE)) < 7 THEN
+			(YEAR(CAST(Mod_Date AS DATE))) --BEFORE 7/1/20XX && YEAR IS ODD
+		ELSE 
+			(YEAR(CAST(Mod_Date AS DATE))+2) --AFTER 7/1/20XX && YEAR IS ODD
+		END
+	ELSE 
+		(YEAR(CAST(Mod_Date AS DATE))+1) --YEAR IS EVEN
+	END as AppropriationYearFull,
+	'' as Filler__,
+	'' as [UsedInternallyByR*StarsForCMIA]
+	from @Calculations
+	WHERE DistributionTotal < 0
+	group by p_code, pca_value, p_id, CAST(Mod_Date AS DATE)
+	order by p_code
+
+	--remove 0 value rows
+	DELETE FROM @TransactionResults WHERE CONVERT(BIGINT, TransactionAmount) = 0 OR TransactionAmount IS NULL
+
+
+	--TRANSACTION RESULTS FOOTER ROW
+	INSERT INTO @TransactionResults
+	SELECT 
+	'635' AS BatchAgency,
+	CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) AS BatchDate,
+	'2' AS BatchType,
+	0 AS BatchNumber,
+	1 AS BatchSeqNumber,
+	'INT635EL' AS OperatorId,
+	'' AS TerminalIdentification,
+	CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) AS EffectiveDate, 
+	'**' AS AppropriationYear,
+	'' AS DisbursementMethodIndicator,
+	'' AS CaptilizeIndicator,
+	'407' AS TransactionCode,
+	'' AS Modifier,
+	'' AS Reverse,
+	'635' AS Agency,
+	'' AS RecurringTransactionIndex,
+	'04310' AS [Index],
+	'' AS AppropriationNumber,
+	'' AS Fund,
+	'45039' AS ProgramCostAccount,
+	'' AS ComptrollerObject,
+	'1115' AS AgencyObject,
+	'' AS ProjectNumber,
+	'' AS ProjectPhase,
+	'' AS GrantNumber,
+	'' AS GrantPhase,
+	'' AS SubGrantee,
+	'' AS AgencyCode1_Facility,
+	'' AS AgencyCode2_Task,
+	'' AS AgencyCode3_Location,
+	'' AS AgencyGeneralLedgerAccount,
+	'' AS MultipurposeCode,
+	'' AS GeneralLedgerAccount,
+	'' AS VendorNumber,
+	'' AS VendorSuffix,
+	'' AS [1099Indicator],
+	'' AS InvoiceNumber,
+	'' AS InvoiceDate,
+	'' AS DocumentDate,
+	0 AS CurrentDocumentNumber, --BI0001, -> next batch BI0002
+	0 AS CurrentDocumentSuffix, -- increment for each transaction, MAX BATCH SIZE 999
+	'' AS ReferenceDocumentNumber,
+	'' AS ReferenceDocumentSuffix,
+	'' AS DueDate,
+	'' AS ServiceDate,
+	'' AS WarrentNumber,
+	'' AS PaymentDistributionType,
+	'' AS PropertyNumber,
+	'' AS GASB38TransferNumber,
+	'' AS FundControlOverrideFlag,
+	'' AS ContractNumber,
+	FORMAT((CONVERT(MONEY, SUM(DistributionTotal)*100)),'000000000000#') AS TransactionAmount,
+	'' AS DiscountAmount,
+	'' AS Filler,
+	'ELS DISTRIBUTION ' + CONVERT(VARCHAR, CAST(Mod_Date AS DATE)) AS Description,
+	'' AS CashReceiptPaymentOption,
+	'' AS BankNumber,
+	'' AS DiscountDate,
+	'' AS DiscountTerms,
+	'' AS PenaltyDate,
+	'' AS PenaltyTerms,
+	'' AS InterestTerms,
+	'' AS PenaltyAmount,
+	'' AS VendorName,
+	'' AS VendorAddressLine1,
+	'' AS VendorAddressLine2,
+	'' AS VendorAddressLine3,
+	'' AS VendorAddressLine4,
+	'' AS City,
+	'' AS State,
+	'' AS ZipCode,
+	'' AS Filler_,
+	'635' AS DocAgency,
+	'' AS OriginalVendorNumber,
+	'' AS OriginalVendorSuffixAppnYearInputCCYY,
+	CASE WHEN YEAR(CAST(Mod_Date AS DATE)) % 2 = 1 THEN
+		CASE WHEN MONTH(CAST(Mod_Date AS DATE)) < 7 THEN
+			(YEAR(CAST(Mod_Date AS DATE))) --BEFORE 7/1/20XX && YEAR IS ODD
+		ELSE 
+			(YEAR(CAST(Mod_Date AS DATE))+2) --AFTER 7/1/20XX && YEAR IS ODD
+		END
+	ELSE 
+		(YEAR(CAST(Mod_Date AS DATE))+1) --YEAR IS EVEN
+	END AS AppropriationYearFull,
+	'' AS Filler__,
+	'' AS [UsedInternallyByR*StarsForCMIA]
+	from @Calculations
+	group by CAST(Mod_Date AS DATE)
+
+
+	--UPDATE batch seq number
+	UPDATE x
+	SET x.CurrentDocumentSuffix = FORMAT(x.newNumber,'00#')
+	FROM (
+		SELECT BatchNumber, CurrentDocumentSuffix, ROW_NUMBER() OVER (ORDER BY BatchSeqNumber, ProgramCostAccount) AS newNumber
+		FROM @TransactionResults
+	) x
+	UPDATE x
+	SET x.BatchSeqNumber = FORMAT(x.newNumber,'0000#')
+	FROM (
+		SELECT BatchNumber, BatchSeqNumber, ROW_NUMBER() OVER (ORDER BY BatchSeqNumber, ProgramCostAccount) AS newNumber
+		FROM @TransactionResults
+	) x
+	
+	DECLARE @BatchSize int
+	SET @BatchSize = 999
+	DECLARE @CurrentBatchNumber int
+	SET @CurrentBatchNumber = CONVERT(int, (SELECT (SELECT [BatchNumber] FROM [ODFWSqlReports].[dbo].[SFMAConfigurations]) % 100000))
+	DECLARE @BatchTotal int
+	SET @BatchTotal = (SELECT COUNT(*) FROM @TransactionResults)
+	DECLARE @BatchCurrent int
+	SET @BatchCurrent = 0
+	DECLARE @BatchNumber int
+	SET @BatchNumber = (SELECT 900 + (@CurrentBatchNumber % 100))
+
+	WHILE(@BatchCurrent < @BatchTotal)
+	BEGIN
+		UPDATE @TransactionResults
+		SET CurrentDocumentNumber =  FORMAT(BatchNumber+1+@CurrentBatchNumber,'BI00000#')
+		WHERE CurrentDocumentNumber = 0 AND (@BatchCurrent <= CONVERT(INT, CurrentDocumentNumber)) AND (CONVERT(INT, CurrentDocumentNumber) <= @BatchCurrent + @BatchSize)
+
+		UPDATE @TransactionResults
+		SET BatchNumber = @BatchNumber
+		WHERE BatchNumber = 0 AND (@BatchCurrent <= CONVERT(INT, BatchSeqNumber)) AND (CONVERT(INT, BatchSeqNumber) <= @BatchCurrent + @BatchSize)
+
+		--MAIN HEADER ROW(S)
+		INSERT INTO @HeaderResults
+		SELECT top 100
+		'635' AS BatchAgency,
+		CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) AS BatchDate,
+		'2' AS BatchType,
+		@BatchNumber AS BatchNumber,
+		'00000' AS BatchSeqNo,
+		'INT635EL' AS BatchOperatorId,
+		'' AS BatchOperatorName,
+		'' AS BatchOperatorClass,
+		'' AS BatchTerminalIdentification,
+		CONVERT(varchar,  CAST(Mod_Date AS DATE), 112) AS EffectiveDate,
+		'' AS DisbursementMethodIndicator,
+		'' AS PaymentDistributionType,
+		'N' AS FastEntry,
+		'' AS BatchDocumentHoldFlag,
+		'Y' AS BatchCountEntered,
+		'R' AS BatchStatus,
+		'Y' AS BatchHeaderCountSwitch,
+		FORMAT((SELECT COUNT(*) FROM @TransactionResults t WHERE t.BatchNumber = @BatchNumber),'0000#') AS BatchLastSequenceNumberUsed,
+		'99999' AS BatchSystemDate,
+		'0' AS BatchMasterFileIndicatorSwitch,
+		'' AS Filler,
+		FORMAT((SELECT COUNT(*) FROM @TransactionResults t WHERE t.BatchNumber = @BatchNumber),'0000#') AS EnteredBatchCountNumeric,
+		FORMAT(((SELECT ABS(SUM(convert(BIGINT,t.TransactionAmount))) FROM @TransactionResults t WHERE t.BatchNumber = @BatchNumber)),'000000000000#') AS EnteredBatchAmountNumeric,
+		'' AS Filler_,
+		'00000' AS ComputedBatchCountNumeric,
+		'0000000000000' AS ComputedBatchAmountNumeric,
+		'Y' AS ApprovalRequiredToPostIndiciator,
+		'' AS AllDocumentsApproved,
+		'' AS Filler__
+		from @Calculations
+		group by CAST(Mod_Date AS DATE)
+
+		SET @BatchCurrent = @BatchCurrent + @BatchSize
+		SET @BatchNumber = @BatchNumber + 1
+		
+		IF @Header = 0
+		UPDATE [ODFWSqlReports].[dbo].[SFMAConfigurations]
+		SET [BatchNumber] = [BatchNumber] + 1
+	END
+		
+	IF @Header = 1 
+	SELECT * FROM @HeaderResults
+
+	IF @Header = 0
+	SELECT * FROM @TransactionResults
+	ORDER BY convert(INT, BatchNumber),convert(INT, BatchSeqNumber)
+	
+	IF @Header IS NULL
+	SELECT * FROM @HeaderResults
+	IF @Header IS NULL
+	SELECT * FROM @TransactionResults
+	ORDER BY convert(INT, BatchNumber),convert(INT, BatchSeqNumber)
