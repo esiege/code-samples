@@ -24,144 +24,144 @@
 		 --SET @Header = NULL
 		 --SET @ShowDebugInfo = 1
 
-		declare @HeaderResults table (
-			[BatchAgency]							NCHAR(3), --  1 - 3
-			[BatchDate]								NCHAR(8), --  4 - 11
-			[BatchType]								NCHAR(1), -- 12
-			[BatchNumber]							NCHAR(3), -- 13 - 15
-			[BatchSeqNumber]						NCHAR(5), -- 16 - 20
-			[BatchOperatorId]						NCHAR(8), -- 21 - 28
-			[BatchOperatorName]						NCHAR(20),-- 29 - 48
-			[BatchOperatorClass]					NCHAR(2), -- 49 - 50 
-			[BatchTerminalIdentification]			NCHAR(4), -- 51 - 54
-			[EffectiveDate]							NCHAR(8), -- 55 - 62
-			[DisbursementMethodIndicator]			NCHAR(1), -- 63
-			[PaymentDistributionType]				NCHAR(2), -- 64 - 65
-			[FastEntry]								NCHAR(1), -- 66
-			[BatchDocumentHoldFlag]					NCHAR(1), -- 67
-			[BatchCountEntered]						NCHAR(1), -- 68
-			[BatchStatus]							NCHAR(1), -- 69
-			[BatchHeaderCountSwitch]				NCHAR(1), -- 70
-			[BatchLastSequenceNumberUsed]			NCHAR(5), -- 71 - 75
-			[BatchSystemDate]						NCHAR(5), -- 76 - 80
-			[BatchMasterFileIndicatorSwitch]		NCHAR(1), -- 81
-			[Filler]								NCHAR(7), -- 82 - 88
-			[EnteredBatchCountNumeric]				NCHAR(5), -- 89 - 93
-			[EnteredBatchAmountNumeric]				NCHAR(13),-- 94 - 106
-			[Filler_]								NCHAR(5), -- 107 - 111
-			[ComputedBatchCountNumeric]				NCHAR(5), -- 112 - 116
-			[ComputedBatchAmountNumeric]			NCHAR(13),-- 117 - 129
-			[ApprovalRequiredToPostIndicator]		NCHAR(1), -- 130
-			[AllDocumentsApproved]					NCHAR(1), -- 131
-			[Filler__]								NCHAR(619)-- 132 - 750
-			)
-
-		declare @TransactionResults table (
-			[BatchAgency]							NCHAR(3), --  1 - 3
-			[BatchDate]								NCHAR(8), --  4 - 11
-			[BatchType]								NCHAR(1), --  12
-			[BatchNumber]							NCHAR(3), -- 13 - 15
-			[BatchSeqNumber]						NCHAR(5), -- 16 - 20
-			[OperatorID]							NCHAR(8), -- 21 - 28
-			[TerminalIdentification]				NCHAR(4), -- 29 - 32
-			[EffectiveDate]							NCHAR(8), -- 33 - 40
-			[AppropriationYear]						NCHAR(2), -- 41 - 42
-			[DisbursementMethodIndicator]			NCHAR(1), -- 43
-			[CaptilizeIndicator]					NCHAR(1), -- 44
-			[TransactionCode]						NCHAR(3), -- 45 - 47
-			[Modifier]								NCHAR(1), -- 48
-			[Reverse]								NCHAR(1), -- 49
-			[Agency]								NCHAR(3), -- 50 - 52
-			[RecurringTransactionIndex]				NCHAR(6), -- 53 - 58
-			[Index]									NCHAR(5), -- 59 - 63
-			[AppropriationNumber]					NCHAR(5), -- 64 - 68
-			[Fund]									NCHAR(4), -- 69 - 72
-			[ProgramCostAccount]					NCHAR(5), -- 73 - 77
-			[ComptrollerObject]						NCHAR(4), -- 78 - 81
-			[AgencyObject]							NCHAR(4), -- 82 - 85
-			[ProjectNumber]							NCHAR(6), -- 86 - 91
-			[ProjectPhase]							NCHAR(6), -- 92 - 97
-			[GrantNumber]							NCHAR(6), -- 98 - 103
-			[GrantPhase]							NCHAR(2), -- 104 - 105
-			[SubGrantee]							NCHAR(9), -- 106 - 114
-			[AgencyCode1_Facility]					NCHAR(4), -- 115 - 118
-			[AgencyCode2_Task]						NCHAR(4), -- 119 - 122
-			[AgencyCode3_Location]					NCHAR(6), -- 123 - 128
-			[AgencyGeneralLedgerAccount]			NCHAR(8), -- 129 - 136
-			[MultipurposeCode]						NCHAR(11),-- 137 - 147
-			[GeneralLedgerAccount]					NCHAR(4), -- 148 - 151
-			[VendorNumber]							NCHAR(10),-- 152 - 161
-			[VendorSuffix]							NCHAR(3), -- 162 - 164
-			[1099Indicator]							NCHAR(1), -- 165
-			[InvoiceNumber]							NCHAR(14),-- 166 - 179
-			[InvoiceDate]							NCHAR(8), -- 180 - 187
-			[DocumentDate]							NCHAR(8), -- 188 - 195
-			[CurrentDocumentNumber]					NCHAR(8), -- 196 - 203
-			[CurrentDocumentSuffix]					NCHAR(3), -- 204 - 206
-			[ReferenceDocumentNumber]				NCHAR(8), -- 207 - 214
-			[ReferenceDocumentSuffix]				NCHAR(3), -- 215 - 217
-			[DueDate]								NCHAR(8), -- 218 - 225
-			[ServiceDate]							NCHAR(8), -- 226 - 233
-			[WarrentNumber]							NCHAR(9), -- 234 - 242
-			[PaymentDistributionType]				NCHAR(2), -- 243 - 244
-			[PropertyNumber]						NCHAR(10),-- 245 - 254
-			[GASB38TransferNumber]					NCHAR(9), -- 255 - 263
-			[FundControlOverrideFlag]				NCHAR(1), -- 264
-			[ContractNumber]						NCHAR(10),-- 265 - 274
-			[TransactionAmount]						NCHAR(13),-- 275 - 287
-			[DiscountAmount]						NCHAR(11),-- 288 - 298
-			[Filler]								NCHAR(2), -- 299 - 300
-			[Description]							NCHAR(30),-- 301 - 330
-			[CashReceiptPaymentOption]				NCHAR(1), -- 331
-			[BankNumber]							NCHAR(13),-- 332 - 344
-			[DiscountDate]							NCHAR(8), -- 345 - 352
-			[DiscountTerms]							NCHAR(2), -- 353 - 354
-			[PenaltyDate]							NCHAR(8), -- 355 - 362
-			[PenaltyTerms]							NCHAR(2), -- 363 - 364
-			[InterestTerms]							NCHAR(2), -- 365 - 366
-			[PenaltyAmount]							NCHAR(11),-- 367 - 377
-			[VendorName]							NCHAR(50),-- 378 - 427
-			[VendorAddressLine1]					NCHAR(50),-- 428 - 477
-			[VendorAddressLine2]					NCHAR(50),-- 478 - 527
-			[VendorAddressLine3]					NCHAR(50),-- 528 - 577
-			[VendorAddressLine4]					NCHAR(50),-- 578 - 627
-			[City]									NCHAR(20),-- 628 - 647
-			[State]									NCHAR(2), -- 648 - 649
-			[ZipCode]								NCHAR(7), -- 650 - 656
-			[Filler_]								NCHAR(7), -- 657 - 663
-			[DocAgency]								NCHAR(3), -- 664 - 666
-			[OriginalVendorNumber]					NCHAR(10),-- 667 - 676
-			[OriginalVendorSuffixAppnYearInputCCYY]	NCHAR(3), -- 677 - 679
-			[AppropriationYearFull]					NCHAR(4), -- 680 - 683
-			[Filler__]								NCHAR(44),-- 694 - 727
-			[UsedInternallyByR*StarsForCMIA]		NCHAR(23) -- 728 - 750
-	)		
-				
-	declare @Calculations table (
-		[sti_id] INT,
-		[p_code] VARCHAR (50),
-		[Product_Name] VARCHAR(255),
-		[Pricing_Type] VARCHAR(255),
-		[Mod_Date] DATETIME,
-		[pca_value] VARCHAR(75),
-		[amount] DECIMAL(18,2),
-		[NicDealerFee] DECIMAL(18,2),
-		[StateCommission] DECIMAL(18,2),
-		[DealerCommission] DECIMAL(18,2),
-		[p_id] INT,
-		[fsdi_id] INT,
-		[calculationId] INT,
-		[isPrimary] INT,
-		[DistributionAmount] DECIMAL(18,2),
-		[EffectiveDistributionAmount] DECIMAL(18,10),
-		[TransCount] INT,
-		[EffectiveAmount] DECIMAL(18,4),
-		[PartialCents] DECIMAL(18,18),
-		[PartialCentsDistributionAmount] DECIMAL(18,18),
-		[DistributionTotal] DECIMAL(18,10),
-		[DistributionTotalSum] DECIMAL(18,10),
-		[SalesChannelCode] VARCHAR(3)
-	)
+	--tables are created for supporting character delimited output, for use in a SFTP transfer to an IBM mainframe, which consumes the file nightly
+	declare @HeaderResults table (
+		[BatchAgency]						NCHAR(3), --  1 - 3
+		[BatchDate]						NCHAR(8), --  4 - 11
+		[BatchType]						NCHAR(1), -- 12
+		[BatchNumber]						NCHAR(3), -- 13 - 15
+		[BatchSeqNumber]					NCHAR(5), -- 16 - 20
+		[BatchOperatorId]					NCHAR(8), -- 21 - 28
+		[BatchOperatorName]					NCHAR(20),-- 29 - 48
+		[BatchOperatorClass]					NCHAR(2), -- 49 - 50 
+		[BatchTerminalIdentification]				NCHAR(4), -- 51 - 54
+		[EffectiveDate]						NCHAR(8), -- 55 - 62
+		[DisbursementMethodIndicator]				NCHAR(1), -- 63
+		[PaymentDistributionType]				NCHAR(2), -- 64 - 65
+		[FastEntry]						NCHAR(1), -- 66
+		[BatchDocumentHoldFlag]					NCHAR(1), -- 67
+		[BatchCountEntered]					NCHAR(1), -- 68
+		[BatchStatus]						NCHAR(1), -- 69
+		[BatchHeaderCountSwitch]				NCHAR(1), -- 70
+		[BatchLastSequenceNumberUsed]				NCHAR(5), -- 71 - 75
+		[BatchSystemDate]					NCHAR(5), -- 76 - 80
+		[BatchMasterFileIndicatorSwitch]			NCHAR(1), -- 81
+		[Filler]						NCHAR(7), -- 82 - 88
+		[EnteredBatchCountNumeric]				NCHAR(5), -- 89 - 93
+		[EnteredBatchAmountNumeric]				NCHAR(13),-- 94 - 106
+		[Filler_]						NCHAR(5), -- 107 - 111
+		[ComputedBatchCountNumeric]				NCHAR(5), -- 112 - 116
+		[ComputedBatchAmountNumeric]				NCHAR(13),-- 117 - 129
+		[ApprovalRequiredToPostIndicator]			NCHAR(1), -- 130
+		[AllDocumentsApproved]					NCHAR(1), -- 131
+		[Filler__]						NCHAR(619)-- 132 - 750
+		)
+	declare @TransactionResults table (
+		[BatchAgency]						NCHAR(3), --  1 - 3
+		[BatchDate]						NCHAR(8), --  4 - 11
+		[BatchType]						NCHAR(1), --  12
+		[BatchNumber]						NCHAR(3), -- 13 - 15
+		[BatchSeqNumber]					NCHAR(5), -- 16 - 20
+		[OperatorID]						NCHAR(8), -- 21 - 28
+		[TerminalIdentification]				NCHAR(4), -- 29 - 32
+		[EffectiveDate]						NCHAR(8), -- 33 - 40
+		[AppropriationYear]					NCHAR(2), -- 41 - 42
+		[DisbursementMethodIndicator]				NCHAR(1), -- 43
+		[CaptilizeIndicator]					NCHAR(1), -- 44
+		[TransactionCode]					NCHAR(3), -- 45 - 47
+		[Modifier]						NCHAR(1), -- 48
+		[Reverse]						NCHAR(1), -- 49
+		[Agency]						NCHAR(3), -- 50 - 52
+		[RecurringTransactionIndex]				NCHAR(6), -- 53 - 58
+		[Index]							NCHAR(5), -- 59 - 63
+		[AppropriationNumber]					NCHAR(5), -- 64 - 68
+		[Fund]							NCHAR(4), -- 69 - 72
+		[ProgramCostAccount]					NCHAR(5), -- 73 - 77
+		[ComptrollerObject]					NCHAR(4), -- 78 - 81
+		[AgencyObject]						NCHAR(4), -- 82 - 85
+		[ProjectNumber]						NCHAR(6), -- 86 - 91
+		[ProjectPhase]						NCHAR(6), -- 92 - 97
+		[GrantNumber]						NCHAR(6), -- 98 - 103
+		[GrantPhase]						NCHAR(2), -- 104 - 105
+		[SubGrantee]						NCHAR(9), -- 106 - 114
+		[AgencyCode1_Facility]					NCHAR(4), -- 115 - 118
+		[AgencyCode2_Task]					NCHAR(4), -- 119 - 122
+		[AgencyCode3_Location]					NCHAR(6), -- 123 - 128
+		[AgencyGeneralLedgerAccount]				NCHAR(8), -- 129 - 136
+		[MultipurposeCode]					NCHAR(11),-- 137 - 147
+		[GeneralLedgerAccount]					NCHAR(4), -- 148 - 151
+		[VendorNumber]						NCHAR(10),-- 152 - 161
+		[VendorSuffix]						NCHAR(3), -- 162 - 164
+		[1099Indicator]						NCHAR(1), -- 165
+		[InvoiceNumber]						NCHAR(14),-- 166 - 179
+		[InvoiceDate]						NCHAR(8), -- 180 - 187
+		[DocumentDate]						NCHAR(8), -- 188 - 195
+		[CurrentDocumentNumber]					NCHAR(8), -- 196 - 203
+		[CurrentDocumentSuffix]					NCHAR(3), -- 204 - 206
+		[ReferenceDocumentNumber]				NCHAR(8), -- 207 - 214
+		[ReferenceDocumentSuffix]				NCHAR(3), -- 215 - 217
+		[DueDate]						NCHAR(8), -- 218 - 225
+		[ServiceDate]						NCHAR(8), -- 226 - 233
+		[WarrentNumber]						NCHAR(9), -- 234 - 242
+		[PaymentDistributionType]				NCHAR(2), -- 243 - 244
+		[PropertyNumber]					NCHAR(10),-- 245 - 254
+		[GASB38TransferNumber]					NCHAR(9), -- 255 - 263
+		[FundControlOverrideFlag]				NCHAR(1), -- 264
+		[ContractNumber]					NCHAR(10),-- 265 - 274
+		[TransactionAmount]					NCHAR(13),-- 275 - 287
+		[DiscountAmount]					NCHAR(11),-- 288 - 298
+		[Filler]						NCHAR(2), -- 299 - 300
+		[Description]						NCHAR(30),-- 301 - 330
+		[CashReceiptPaymentOption]				NCHAR(1), -- 331
+		[BankNumber]						NCHAR(13),-- 332 - 344
+		[DiscountDate]						NCHAR(8), -- 345 - 352
+		[DiscountTerms]						NCHAR(2), -- 353 - 354
+		[PenaltyDate]						NCHAR(8), -- 355 - 362
+		[PenaltyTerms]						NCHAR(2), -- 363 - 364
+		[InterestTerms]						NCHAR(2), -- 365 - 366
+		[PenaltyAmount]						NCHAR(11),-- 367 - 377
+		[VendorName]						NCHAR(50),-- 378 - 427
+		[VendorAddressLine1]					NCHAR(50),-- 428 - 477
+		[VendorAddressLine2]					NCHAR(50),-- 478 - 527
+		[VendorAddressLine3]					NCHAR(50),-- 528 - 577
+		[VendorAddressLine4]					NCHAR(50),-- 578 - 627
+		[City]							NCHAR(20),-- 628 - 647
+		[State]							NCHAR(2), -- 648 - 649
+		[ZipCode]						NCHAR(7), -- 650 - 656
+		[Filler_]						NCHAR(7), -- 657 - 663
+		[DocAgency]						NCHAR(3), -- 664 - 666
+		[OriginalVendorNumber]					NCHAR(10),-- 667 - 676
+		[OriginalVendorSuffixAppnYearInputCCYY]			NCHAR(3), -- 677 - 679
+		[AppropriationYearFull]					NCHAR(4), -- 680 - 683
+		[Filler__]						NCHAR(44),-- 694 - 727
+		[UsedInternallyByR*StarsForCMIA]			NCHAR(23) -- 728 - 750
+)		
+			
+declare @Calculations table (
+	[sti_id] INT,
+	[p_code] VARCHAR (50),
+	[Product_Name] VARCHAR(255),
+	[Pricing_Type] VARCHAR(255),
+	[Mod_Date] DATETIME,
+	[pca_value] VARCHAR(75),
+	[amount] DECIMAL(18,2),
+	[NicDealerFee] DECIMAL(18,2),
+	[StateCommission] DECIMAL(18,2),
+	[DealerCommission] DECIMAL(18,2),
+	[p_id] INT,
+	[fsdi_id] INT,
+	[calculationId] INT,
+	[isPrimary] INT,
+	[DistributionAmount] DECIMAL(18,2),
+	[EffectiveDistributionAmount] DECIMAL(18,10),
+	[TransCount] INT,
+	[EffectiveAmount] DECIMAL(18,4),
+	[PartialCents] DECIMAL(18,18),
+	[PartialCentsDistributionAmount] DECIMAL(18,18),
+	[DistributionTotal] DECIMAL(18,10),
+	[DistributionTotalSum] DECIMAL(18,10),
+	[SalesChannelCode] VARCHAR(3)
+)
 	
 	--check if data is cached
 	IF ((SELECT TOP 1 1 FROM SFMACalculations WHERE CAST([Mod_Date] AS DATE) = @QueryDate) IS NULL)
