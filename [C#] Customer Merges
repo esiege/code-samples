@@ -1,0 +1,389 @@
+
+    public class MergeCustomerController : Controller
+    {
+        private Customer primaryCustomer = new Customer();
+        private Customer targetCustomer = new Customer();
+
+        [HttpGet]
+        [AdGroupAuthorizeMvc(AuthorizedUsers = new[] { AuthorizationGroupType.ClamLicensingStaff, AuthorizationGroupType.ClamAdmin })]
+        public ActionResult Index(MergeCustomerForm form)
+        {
+            return View(form);
+        }
+
+        [HttpPost]
+        [AdGroupAuthorizeMvc(AuthorizedUsers = new[] { AuthorizationGroupType.ClamLicensingStaff, AuthorizationGroupType.ClamAdmin })]
+        public ActionResult CustomerResults(MergeCustomerForm form)
+        {
+            using (var ctx = new CommercialLicensingContext())
+            {
+                var processor = new CommercialLicensingProcessor<Customer>();
+                if (form.PrimaryCustomer != null && form.PrimaryCustomer.Id > 0)
+                {
+                    primaryCustomer = ctx.Customers
+                        .Include("FurtakerBrands")
+                        .Include("CustomerStatusType")
+                        .Include("Addresses")
+                        .Include("Documents")
+                        .Include("Documents.DocumentType")
+                        .Include("Documents.DocumentYear")
+                        .FirstOrDefault(x => x.Id == form.PrimaryCustomer.Id);
+                    form.PrimaryCustomer = primaryCustomer;
+                    form.PrimaryCustomerSsn = processor.GetSocialSecurityNumberByCustomerId(form.PrimaryCustomer.Id);
+                }
+
+                if (form.TargetCustomer != null && form.TargetCustomer.Id > 0)
+                {
+                    targetCustomer = ctx.Customers
+                        .Include("FurtakerBrands")
+                        .Include("CustomerStatusType")
+                        .Include("Addresses")
+                        .Include("Documents")
+                        .Include("Documents.DocumentType")
+                        .Include("Documents.DocumentYear")
+                        .FirstOrDefault(x => x.Id == form.TargetCustomer.Id);
+                    form.TargetCustomer = targetCustomer;
+                    form.TargetCustomerSsn = processor.GetSocialSecurityNumberByCustomerId(form.TargetCustomer.Id);
+                }
+
+            }
+
+            if (primaryCustomer == null || form.PrimaryCustomer.Id <= 0)
+            {
+                form.ErrorMessage = "Primary Customer not found.";
+                return View("Index", form);
+            }
+            else if (primaryCustomer.CustomerStatusType.Name == "Merged")
+            {
+                form.ErrorMessage = "Primary Customer has been merged and does not currently exist.";
+                return View("Index", form);
+            }
+            else if (targetCustomer == null || form.TargetCustomer.Id <= 0)
+            {
+                form.ErrorMessage = "Target Customer not found.";
+                return View("Index", form);
+            }
+            else if (form.PrimaryCustomer.Id == form.TargetCustomer.Id)
+            {
+                form.ErrorMessage = "Customer cannot merge into itself.";
+                return View("Index", form);
+            }
+
+            return View(form);
+        }
+
+        [HttpPost]
+        [AdGroupAuthorizeMvc(AuthorizedUsers = new[] { AuthorizationGroupType.ClamLicensingStaff, AuthorizationGroupType.ClamAdmin })]
+        public ActionResult MergeResults(MergeCustomerForm form)
+        {
+
+            if (form.PrimaryCustomer == null || form.TargetCustomer == null || form.PrimaryCustomer.Id <= 0 || form.TargetCustomer.Id <= 0)
+            {
+                return View("Index");
+            }
+
+            using (var ctx = new CommercialLicensingContext())
+            {
+                #region get latest for results screen
+                primaryCustomer = ctx.Customers
+                    .Include("FurtakerBrands")
+                    .Include("CustomerStatusType")
+                    .Include("Addresses")
+                    .Include("Documents")
+                    .Include("Documents.DocumentType")
+                    .Include("Documents.DocumentYear")
+                    .FirstOrDefault(x => x.Id == form.PrimaryCustomer.Id);
+                targetCustomer = ctx.Customers
+                    .Include("FurtakerBrands")
+                    .Include("CustomerStatusType")
+                    .Include("Addresses")
+                    .Include("Documents")
+                    .Include("Documents.DocumentType")
+                    .Include("Documents.DocumentYear")
+                    .FirstOrDefault(x => x.Id == form.TargetCustomer.Id);
+
+                form.PrimaryCustomer = primaryCustomer;
+                form.TargetCustomer = targetCustomer;
+
+                var customerProcessor = new CommercialLicensingProcessor<Customer>();
+
+                form.PrimaryCustomerSsn = customerProcessor.GetSocialSecurityNumberByCustomerId(form.PrimaryCustomer.Id);
+                form.TargetCustomerSsn = customerProcessor.GetSocialSecurityNumberByCustomerId(form.TargetCustomer.Id);
+                #endregion
+                var tempRepository = new BaseRepository<Document>(new CommercialLicensingContext());
+                int odfwId = tempRepository.GetOrInsertOdfwAgent(User.Identity.Name).Id;
+
+                #region MERGE CUSTOMERS
+                if (form.TargetCustomer.CustomerStatusType.Name != "Merged")
+                {
+
+                    #region -Customer
+
+                    //set customer status type
+                    CustomerStatusType mergedType = ctx.CustomerStatusTypes.FirstOrDefault(x => x.Name == "Merged");
+                    try { form.TargetCustomer.StatusId = mergedType.Id; }
+                    catch (Exception) { throw new Exception("'Merged' status type not found."); }
+
+                    //track customer id
+                    ctx.MergeHistories.Add(new MergeHistory
+                    {
+                        UltimateId = form.PrimaryCustomer.Id,
+                        PrimaryId = form.PrimaryCustomer.Id,
+                        TargetId = form.TargetCustomer.Id,
+                        SourceId = form.TargetCustomer.Id,
+                        Type = "Customer",
+                        TransactionDate = DateTime.Now,
+                        OdfwAgentId = odfwId
+                    });
+
+                    #endregion
+
+                    #region-Furtaker Brand
+                    //track customer id
+
+                    FurtakerBrand targetBrand = ctx.FurtakerBrands.FirstOrDefault(x => x.CustomerId == form.TargetCustomer.Id);
+                    FurtakerBrand primaryBrand = ctx.FurtakerBrands.FirstOrDefault(x => x.CustomerId == form.PrimaryCustomer.Id);
+
+                    if (primaryBrand == null && targetBrand != null)
+                    {
+                        targetBrand.CustomerId = form.PrimaryCustomer.Id;
+
+                        //track brand id
+                        ctx.MergeHistories.Add(new MergeHistory
+                        {
+                            UltimateId = form.PrimaryCustomer.Id,
+                            PrimaryId = form.PrimaryCustomer.Id,
+                            TargetId = form.TargetCustomer.Id,
+                            SourceId = targetBrand.Id,
+                            Type = "Brand",
+                            TransactionDate = DateTime.Now,
+                            OdfwAgentId = odfwId
+                        });
+                    }
+                    #endregion
+
+                    #region-Fishdealer Addresses
+                    AddressType fishdealerAddressType = ctx.AddressTypes.FirstOrDefault(x => x.Name == "Fish Dealer");
+                    try { fishdealerAddressType.Id = fishdealerAddressType.Id; }
+                    catch (Exception) { throw new Exception("'Fish Dealer' status type not found."); }
+
+                    //track customer id
+                    List<Address> targetFDAddresses = ctx.Addresses.Where(
+                        x => x.CustomerId == form.TargetCustomer.Id &&
+                            x.AddressTypeId == fishdealerAddressType.Id
+                        ).ToList();
+
+                    foreach (Address fdaa in targetFDAddresses)
+                    {
+                        fdaa.CustomerId = form.PrimaryCustomer.Id;
+
+                        //track fishdealer address id
+                        ctx.MergeHistories.Add(new MergeHistory
+                        {
+                            UltimateId = form.PrimaryCustomer.Id,
+                            PrimaryId = form.PrimaryCustomer.Id,
+                            TargetId = form.TargetCustomer.Id,
+                            SourceId = fdaa.Id,
+                            Type = "FDAddress",
+                            TransactionDate = DateTime.Now,
+                            OdfwAgentId = odfwId
+                        });
+
+                    }
+                    #endregion
+
+                    #region -Documents
+                    //get active documents and document/contact ids
+                    IQueryable<Document> customerDocuments = ctx.Documents.Where(x => x.PrimaryCustomerId == form.TargetCustomer.Id);
+
+                    foreach (var dc in customerDocuments)
+                    {
+                        Document doc = ctx.Documents.FirstOrDefault(x => x.PrimaryCustomerId == dc.PrimaryCustomerId);
+
+                        //set document status type
+                        DocumentActionTypeReason mergedDocActionType =
+                            ctx.DocumentActionTypeReasons.FirstOrDefault(x => x.Name == "Customer Merge");
+                        try { doc.DocumentActionTypeReasonId = mergedDocActionType.Id; }
+                        catch (Exception) { throw new Exception("'Customer Merge' document action type reason not found."); }
+
+                        //set document primary customer id
+                        doc.PrimaryCustomerId = form.PrimaryCustomer.Id;
+                        dc.PrimaryCustomerId = form.PrimaryCustomer.Id;
+
+                        //set base values
+                        doc.AmountReceived = 0;
+
+                        tempRepository.InsertOrUpdate(doc, User.Identity.Name, DateTime.Now);
+
+                        ctx.MergeHistories.Add(new MergeHistory
+                        {
+                            UltimateId = form.PrimaryCustomer.Id,
+                            PrimaryId = form.PrimaryCustomer.Id,
+                            TargetId = form.TargetCustomer.Id,
+                            SourceId = doc.Id,
+                            Type = "Document",
+                            TransactionDate = DateTime.Now,
+                            OdfwAgentId = odfwId
+
+                        });
+                        updateUltimateId(form.PrimaryCustomer.Id, form.TargetCustomer.Id);
+                    }
+                    #endregion
+
+                    var processor = new CommercialLicensingProcessor<Document>();
+                    processor.InsertOrUpdateCustomer(form.TargetCustomer, null, User.Identity.Name, false);
+
+
+                }
+                #endregion
+
+
+                #region UNMERGE CUSTOMERS
+                else
+                {
+                    //merge history ids
+                    IQueryable<MergeHistory> mergesToBeReverted = ctx.MergeHistories.Where(x =>
+                        x.PrimaryId == form.PrimaryCustomer.Id &&
+                        x.TargetId == form.TargetCustomer.Id);
+
+
+                    #region -Customer
+                    //merge history id for customer
+                    MergeHistory customerMerge = mergesToBeReverted.FirstOrDefault(x => x.Type == "Customer");
+
+                    //get customer object for the merged customer to be reverted
+                    Customer oldTargetCustomer = new Customer();
+                    try { oldTargetCustomer = ctx.Customers.FirstOrDefault(x => x.Id == customerMerge.TargetId); }
+                    catch (Exception) { throw new Exception("Merged customer information not found in MergeHistory table."); }
+
+                    //clear merge history for customer
+                    ctx.MergeHistories.Remove(customerMerge);
+
+                    //set customer status type
+                    CustomerStatusType activeType = ctx.CustomerStatusTypes.FirstOrDefault(x => x.Name == "Active");
+                    try { oldTargetCustomer.StatusId = activeType.Id; }
+                    catch (Exception) { throw new Exception("'Active' status type not found."); }
+                    #endregion
+
+                    #region-Furtaker Brand
+                    MergeHistory brandMerge = mergesToBeReverted.FirstOrDefault(x => x.Type == "Brand");
+
+                    if (brandMerge != null)
+                    {
+                        //get brand object
+                        FurtakerBrand furBrand = ctx.FurtakerBrands.FirstOrDefault(x => x.Id == brandMerge.SourceId);
+
+                        //revert id
+                        furBrand.CustomerId = (int)brandMerge.TargetId;
+
+                        //clear merge history for brand
+                        ctx.MergeHistories.Remove(brandMerge);
+                    }
+
+                    #endregion
+
+                    #region-Fishdealer Address
+                    List<MergeHistory> fdAddressMerges = mergesToBeReverted.Where(x => x.Type == "FDAddress").ToList();
+
+                    foreach (MergeHistory fdaam in fdAddressMerges)
+                    {
+                        //get fd address object
+                        Address fdAddress = ctx.Addresses.FirstOrDefault(x => x.Id == fdaam.SourceId);
+
+                        //revert id
+                        fdAddress.CustomerId = (int)fdaam.TargetId;
+
+                        //clear merge history for fd address
+                        ctx.MergeHistories.Remove(fdaam);
+                    }
+
+                    #endregion
+
+                    #region -Documents
+                    //get document ids for merge
+                    IQueryable<MergeHistory> documentMerges = mergesToBeReverted.Where(x => x.Type == "Document");
+
+                    DocumentActionTypeReason unmergedDocActionType =
+                        ctx.DocumentActionTypeReasons.FirstOrDefault(x => x.Name == "Unmerge");
+
+
+                    foreach (MergeHistory merge in documentMerges)
+                    {
+                        //get document objects
+                        Document doc = ctx.Documents.FirstOrDefault(x => x.Id == merge.SourceId);
+
+                        try { doc.DocumentActionTypeReasonId = unmergedDocActionType.Id; }
+                        catch (Exception) { throw new Exception("'Customer Merge' document action type reason not found."); }
+
+
+                        doc.PrimaryCustomerId = merge.TargetId;
+
+                        //clear merge history for document
+                        ctx.MergeHistories.Remove(merge);
+                    }
+                }
+                #endregion
+
+                #endregion
+
+                ctx.SaveChanges();
+
+                #region get latest for results screen
+                primaryCustomer = ctx.Customers
+                    .Include("FurtakerBrands")
+                    .Include("CustomerStatusType")
+                    .Include("Addresses")
+                    .Include("Documents")
+                    .Include("Documents.DocumentType")
+                    .Include("Documents.DocumentYear")
+                    .FirstOrDefault(x => x.Id == form.PrimaryCustomer.Id);
+                targetCustomer = ctx.Customers
+                    .Include("FurtakerBrands")
+                    .Include("CustomerStatusType")
+                    .Include("Addresses")
+                    .Include("Documents")
+                    .Include("Documents.DocumentType")
+                    .Include("Documents.DocumentYear")
+                    .FirstOrDefault(x => x.Id == form.TargetCustomer.Id);
+
+                form.PrimaryCustomer = primaryCustomer;
+                form.TargetCustomer = targetCustomer;
+
+                form.PrimaryCustomerSsn = customerProcessor.GetSocialSecurityNumberByCustomerId(form.PrimaryCustomer.Id);
+                form.TargetCustomerSsn = customerProcessor.GetSocialSecurityNumberByCustomerId(form.TargetCustomer.Id);
+                #endregion
+
+                return View(form);
+            }
+
+        }
+
+        private void updateUltimateId(int primaryId, int targetId)
+        {
+
+            using (var ctx = new CommercialLicensingContext())
+            {
+                IQueryable<MergeHistory> childrenMerges = ctx.MergeHistories.Where(x => x.PrimaryId == targetId);
+
+                foreach (MergeHistory mh in childrenMerges)
+                {
+                    mh.UltimateId = primaryId;
+                }
+                ctx.SaveChanges();
+            }
+
+        }
+
+
+        protected override void OnAuthorization(AuthorizationContext filterContext)
+        {
+            RouteValueDictionary route = Url.RequestContext.RouteData.Values;
+            var context = filterContext.HttpContext;
+
+            if (!context.User.IsInRoles(redacted))
+            {
+                Response.Redirect("~/Home/NoPermission");
+            }
+        }
+
+    }
