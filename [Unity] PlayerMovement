@@ -1,0 +1,59 @@
+using UnityEngine;
+using System.Collections;
+
+public class PlayerMovement : MonoBehaviour
+{
+    UnityEngine.CharacterController characterController;
+
+    public float movementSpeed = 8.0f;
+    public float sprintSpeed = 18.0f;
+    public float jumpSpeed = 12.0f;
+    public float gravity = 20.0f;
+
+    private Vector3 moveDirection = Vector3.zero;
+
+    Vector3 GetInputTranslationDirection(Vector3 moveDirection)
+    {
+        Vector3 direction = Vector3.zero;
+        float speed = movementSpeed;
+
+        if (Input.GetKey(KeyCode.LeftShift))
+            speed = sprintSpeed;
+
+        if (Input.GetKey("w"))
+            direction += transform.forward * speed;
+        if (Input.GetKey("s"))
+            direction -= transform.forward * speed;
+        if (Input.GetKey("d"))
+            direction += transform.right * speed;
+        if (Input.GetKey("a"))
+            direction -= transform.right * speed;
+
+        direction.y = moveDirection.y;
+        return direction;
+    }
+
+    void Start()
+    {
+        characterController = GetComponentInParent<UnityEngine.CharacterController>();
+    }
+
+    void Update()
+    {
+
+        if (characterController.isGrounded)
+        {
+            moveDirection = GetInputTranslationDirection(moveDirection);
+            if (Input.GetButton("Jump"))
+            {
+                moveDirection.y = jumpSpeed;
+            }
+        }
+        else
+        {
+            moveDirection.y -= gravity * Time.deltaTime;
+        }
+
+        characterController.Move(moveDirection * Time.deltaTime);
+    }
+}
