@@ -1,0 +1,85 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CollectItem : MonoBehaviour
+{
+    float cooldown = 0.3f;
+    float currentCooldown = 0;
+
+    //increase gather speed when picking up many objects
+    public bool speedGather = true;
+    float sppedGatherCooldown;
+    float sppedGatherThresh = 0.12f;
+    float sppedGatherReduc = 0.09f;
+
+    void Start()
+    {
+        sppedGatherCooldown = cooldown;
+    }
+
+    void Update()
+    {
+        currentCooldown -= Time.deltaTime;
+
+        if (speedGather)
+        {
+            if (cooldown < sppedGatherCooldown)
+                cooldown += Time.deltaTime / 5;
+
+        }
+
+
+        if (Input.GetKey("e"))
+        {
+            if (currentCooldown > 0)
+                return;
+
+            currentCooldown = cooldown;
+
+
+            foreach (GameObject g in gameObject.GetComponentInParent<Stats>().meleeTargetObjects)
+            {
+                if (g == null)
+                    continue;
+
+                GameObject parent = g.transform.root.gameObject;
+
+                if (parent == null)
+                    continue;
+
+                if (parent.tag == "Collectible")
+                {
+                    GetComponentInParent<Stats>().AddItem(
+                       g.gameObject.GetComponentInParent<Collectible>().name, 1, g.gameObject.GetComponentInParent<Collectible>().UITexture
+                    );
+                    gameObject.GetComponentInParent<InventoryUI>().UpdateUI();
+                    gameObject.GetComponentInParent<Stats>().meleeTargetObjects.Remove(g);
+                    Destroy(g);
+                    Destroy(parent);
+
+                    if (cooldown > sppedGatherThresh)
+                        cooldown -= sppedGatherReduc;
+
+                    break;
+                }
+            }
+        }
+
+
+        List<GameObject> objectsToRemove = new List<GameObject>() { };
+        foreach (GameObject g in gameObject.GetComponentInParent<Stats>().meleeTargetObjects)
+        {
+            if (g == null)
+            {
+                objectsToRemove.Add(g);
+            }
+        }
+        foreach (GameObject o in objectsToRemove)
+        {
+            gameObject.GetComponentInParent<Stats>().meleeTargetObjects.Remove(o);
+        }
+
+    }
+
+}
