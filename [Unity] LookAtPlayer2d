@@ -1,0 +1,53 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LookAtPlayer2d : MonoBehaviour
+{
+    public GameObject player;
+    public GameObject image2d;
+    public float minDistance = 0.5f;
+    public float distance = 2.0f;
+
+
+    void Start()
+    {
+        if (player == null)
+        {
+
+            player = GameObject.Find("Player");
+
+            if (player == null)
+            {
+                image2d.GetComponent<SpriteRenderer>().enabled = false;
+                Destroy(this);
+                return;
+            }
+        }
+    }
+
+    void Update()
+    {
+
+        if (player == null)
+            return;
+
+        transform.LookAt(player.transform.position);
+
+        var d = Vector3.Distance(transform.position, player.transform.position);
+
+        Debug.Log(d);
+        if (d < distance && d > minDistance)
+        {
+            image2d.GetComponent<SpriteRenderer>().enabled = true;
+        }
+        else
+        {
+            image2d.GetComponent<SpriteRenderer>().enabled = false;
+
+        }
+
+
+
+    }
+}
