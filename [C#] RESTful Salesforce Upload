@@ -1,0 +1,347 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Salesforce.Helpers;
+using Salesforce.Models;
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
+
+namespace Salesforce.API.Controllers
+{
+	[Route("api/[controller]")]
+	public class UploadController : Controller
+	{
+		readonly IConfiguration _configuration;
+
+		private static readonly HttpClient client = new HttpClient();
+		private static OAuthResponseObject oAuthResponseObject;
+		private string logUrl = "localhost/applicationconfiguration/api/log";
+
+		private string _site;
+		private string _apiVersion;
+		private string _clientId;
+		private string _clientSecret;
+		private string _userName;
+		private string _password;
+		private string _jobInfoUrl;
+		private string _uri;
+		public UploadController(IConfiguration configuration)
+		{
+			_configuration = configuration.GetSection("SalesForceSettings");
+
+			_site = _configuration.GetSection("SiteUrl").Value;
+			_apiVersion = _configuration.GetSection("ApiVersion").Value;
+			_clientId = _configuration.GetSection("ClientId").Value;
+			_clientSecret = _configuration.GetSection("ClientSecret").Value;
+			_userName = _configuration.GetSection("UserName").Value;
+			_password = _configuration.GetSection("Password").Value;
+			_jobInfoUrl = _configuration.GetSection("JobInfoUrl").Value;
+			_uri = $"/services/async/{_apiVersion}/job";
+		}
+
+		public class OAuthResponseObject
+		{
+			public string access_token { get; set; }
+			public string instance_url { get; set; }
+			public string id { get; set; }
+			public string token_type { get; set; }
+			public string issued_at { get; set; }
+			public string signature { get; set; }
+		}
+
+		public class AddJobToBatchResponseObject
+		{
+			public HttpResponseMessage response { get; set; }
+			public string jobId { get; set; }
+			public string batchId { get; set; }
+		}
+
+		// BulkAPI Workflow:
+		// GetAuthToken -> CreateJob -> AddBatchToJob
+
+		[HttpGet]
+		[Route("GetAuthToken")]
+		public async Task<string> GetAuthToken()
+		{
+			string uri = "/services/oauth2/token";
+			string grant_type = "password";
+
+			var postUrl = $"{_site}{uri}?grant_type={grant_type}&client_id={_clientId}&client_secret={_clientSecret}&username={_userName}&password={_password}";
+
+			var task = client.PostAsync(postUrl, new FormUrlEncodedContent(new Dictionary<string, string> { }))
+			.ContinueWith((taskwithresponse) =>
+			{
+				var response = taskwithresponse.Result;
+				var jsonString = response.Content.ReadAsStringAsync();
+				jsonString.Wait();
+				oAuthResponseObject = JsonConvert.DeserializeObject<OAuthResponseObject>(jsonString.Result);
+
+			});
+			task.Wait();
+
+			return JsonConvert.SerializeObject(oAuthResponseObject);
+		}
+
+		[HttpGet]
+		[Route("CreateJob")]
+		public async Task<string> CreateJob(string salesforceObject)
+		{
+			string uri = $"/services/async/{_apiVersion}/job";
+			string contentType = "XML";
+			string operation = "upsert";
+			string externalId = "";
+
+			switch (salesforceObject)
+			{
+				case "Account":
+					externalId = "External_Source_ID__c";
+					break;
+				case "Activities_Classes__c":
+					externalId = "Activity_External_Source_ID__c";
+					break;
+				case "Draw_Results__c":
+					externalId = "Hunt_App_External_Source_ID__c";
+					break;
+				case "Opportunity":
+					externalId = "Sales_Xaction_External_Source_ID__c";
+					break;
+				case "PriceBookEntry":
+					externalId = "Price_External_Source_ID__c";
+					break;
+				case "Product2":
+					externalId = "Product_External_Source_ID__c";
+					break;
+				case "PurchasedProducts2__c":
+					externalId = "Sales_Xaction_Item_External_Source_ID__c";
+					break;
+				case "Restrictions__c":
+					externalId = "Enforce_Action_External_Source_ID__c";
+					break;
+			}
+
+			//authenticate if needed
+			if (oAuthResponseObject == null)
+				await GetAuthToken();
+
+			//generic create job request.  The only variable/data passed is the salesforce object name (salesforceObject)
+			using (var request = new HttpRequestMessage(new HttpMethod("POST"), $"{_site}{uri}"))
+			{
+				request.Headers.TryAddWithoutValidation("X-SFDC-Session", oAuthResponseObject.access_token);
+				request.Headers.TryAddWithoutValidation("Content-Type", "application/xml; charset=UTF-8");
+				request.Content = new StringContent($"<?xml version='1.0' encoding='UTF-8'?>" +
+																						$"<jobInfo xmlns='{_jobInfoUrl}'>" +
+																						$"<operation>{operation}</operation>" +
+																						$"<object>{salesforceObject}</object>" +
+																						$"<externalIdFieldName>{externalId}</externalIdFieldName>" +
+																						$"<contentType>{contentType}</contentType>" +
+																						$"</jobInfo>", Encoding.UTF8, "application/xml");
+
+				HttpResponseMessage response = client.SendAsync(request).Result;
+				var result = response.Content.ReadAsStringAsync().Result;
+
+				XmlDocument xmlDoc = new XmlDocument();
+				xmlDoc.LoadXml(result);
+
+				XmlNodeList elemList = xmlDoc.GetElementsByTagName("id");
+				var jobId = elemList[0].InnerText;
+
+				return jobId;
+			}
+		}
+
+		[HttpGet]
+		[Route("UploadAllLatest")]
+		public async Task<bool> UploadAllLatest(int batchSize)
+		{
+            LogEvent("Starting Salesforce Upload.");
+            int maxDaysAllowedForUpload = 5;
+
+            try
+			{
+				using (var context = new SalesforceContext())
+				{
+					DateTime lastTransactionUploaded = context.SalesforceUpload.OrderByDescending(x => x.TerraLastTransactionUTC).First().TerraLastTransactionUTC;
+                    DateTime endDate = default(DateTime);
+
+                    if ((lastTransactionUploaded - default(DateTime)).TotalDays > maxDaysAllowedForUpload)
+                    {
+                        LogEvent("Uploading all after: " + lastTransactionUploaded.ToString());
+                    }
+                    else
+                    {
+                        LogEvent("Upload max of " + maxDaysAllowedForUpload + " days: " + lastTransactionUploaded.ToString() + " - " + endDate.ToString());
+                        endDate = lastTransactionUploaded.AddDays(maxDaysAllowedForUpload);
+                    }
+
+					var lastTimeStamp = context.ElsAspNetUsersLogs.OrderByDescending(x => x.Timestamp).First().Timestamp;
+					var responses = await this.UploadAll(lastTransactionUploaded, endDate, batchSize);
+					foreach (var response in responses.Where(x => x != null))
+					{
+						if (!string.IsNullOrWhiteSpace(response.jobId) && !string.IsNullOrWhiteSpace(response.batchId))
+						{
+							var url = $"{_site}/services/async/{_apiVersion}/job/" + response.jobId.Substring(0, response.jobId.Length - 3) + "/batch/" + response.batchId.Substring(0, response.batchId.Length - 3);
+							LogEvent($"Upload complete. BatchId: {response.batchId} JobId: {response.jobId} Result URL: {url}");
+						}
+						else
+							LogEvent(response.jobId);
+					}
+					context.SalesforceUpload.Add(new SalesforceUpload { TerraLastTransactionUTC = lastTimeStamp, UploadDate = DateTime.Now });
+					context.SaveChanges();
+					if (responses.Any(x => x.response != null && !x.response.IsSuccessStatusCode))
+						return false;
+					return true;
+				}
+			}
+			catch (Exception ex)
+			{
+				LogEvent("Error in UploadAllLatest", ex);
+				throw;
+			}
+		}
+
+		[HttpGet]
+		[Route("UploadAll")]
+		public async Task<List<AddJobToBatchResponseObject>> UploadAll(DateTime startDate, DateTime endDate, int batchSize)
+		{
+			var uploadResults = new List<AddJobToBatchResponseObject>();
+			var model = new Upload();
+			foreach (var objectName in model.SalesforceObjectNames)
+			{
+				var result = await AddBatchToJob(objectName, startDate, endDate, batchSize);
+				uploadResults.AddRange(result);
+			}
+			return uploadResults;
+		}
+
+		[HttpGet]
+		[Route("AddBatchToJob")]
+		public async Task<List<AddJobToBatchResponseObject>> AddBatchToJob(string salesforceObject, DateTime startDate, DateTime endDate, int batchSize = 1000)
+		{
+			if (startDate == default(DateTime))
+				throw new ArgumentOutOfRangeException("Start date is required");
+			if (string.IsNullOrWhiteSpace(salesforceObject))
+				throw new ArgumentNullException("Salesforce object name");
+			if (oAuthResponseObject == null)
+				await GetAuthToken();
+			if (endDate == default(DateTime))
+				endDate = startDate;
+			var days = (endDate - startDate).TotalDays;
+			var uploadResults = new List<AddJobToBatchResponseObject>();
+			LogEvent($"Starting AddBatchToJob. (Object, startDate, enddate, Batchsize): {salesforceObject}, {startDate}, {endDate}, {batchSize}");
+			for (int i = 0; i <= days; i++)
+			{
+				bool moreToDownload = true;
+				int page = 0;
+				while (moreToDownload)
+				{
+					using (var context = new SalesforceContext())
+					{
+						var date = startDate.AddDays(i);
+						LogEvent($"Uploading (Object, Date, Offest, Batchsize): {salesforceObject}, {date}, {page}, {batchSize}");
+						context.Database.SetCommandTimeout(1500000);
+						Result dataResult = null;
+						var dateParameter = new SqlParameter("@Date", date);
+						var offset = new SqlParameter("@Offset", page);
+						var size = new SqlParameter("@BatchSize", batchSize);
+						dataResult = context.Result.AsNoTracking().FromSql(SqlCommandFromObjectName(salesforceObject), dateParameter, offset, size).FirstOrDefault();
+						var content = "";
+						if (!string.IsNullOrEmpty(dataResult.Value))
+						{
+							var jobId = await CreateJob(salesforceObject);
+							using (var request = new HttpRequestMessage(new HttpMethod("POST"), $"{_site}{_uri}/{jobId}/batch"))
+							{
+                                try
+                                {
+                                    request.Headers.TryAddWithoutValidation("X-SFDC-Session", oAuthResponseObject.access_token);
+                                    request.Headers.TryAddWithoutValidation("Content-Type", "application/xml; charset=UTF-8");
+
+                                    //clean up xml to match salesforce expectations
+                                    //add version row
+                                    content = $"<?xml version=\"1.0\" encoding=\"UTF-8\"?>{dataResult.Value}";
+                                    //remove XML namespace element indicators
+                                    content = content.Replace(":h", "");
+                                    content = content.Replace("h:", "");
+
+                                    //remove any null value XML elements
+                                    XElement doc = XElement.Parse(content);
+                                    doc.Descendants().Where(e => string.IsNullOrEmpty(e.Value)).Remove();
+
+                                    //attach XML
+                                    request.Content = new StringContent(doc.ToString(), Encoding.UTF8, "application/xml");
+
+                                    //send
+                                    HttpResponseMessage response = client.SendAsync(request).Result;
+
+                                    //interpret response
+                                    XmlDocument xmlDoc = new XmlDocument();
+                                    xmlDoc.LoadXml(response.Content.ReadAsStringAsync().Result);
+                                    XmlNodeList elemList = xmlDoc.GetElementsByTagName("id");
+                                    var result = new AddJobToBatchResponseObject();
+                                    result.response = response;
+                                    result.jobId = jobId;
+                                    result.batchId = elemList[0].InnerText;
+
+                                    uploadResults.Add(result);
+                                    page++; //incease count for every 10000 rows 
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogEvent($"Error in AddBatchToJob. (Object, startDate, enddate, Batchsize): {salesforceObject}, {startDate}, {endDate}, {batchSize}", ex);
+                                    throw;
+                                }
+                            }
+						}
+						else
+						{
+							moreToDownload = false;
+							var result = new AddJobToBatchResponseObject { jobId = "No Data to Send - Job not created." };
+							uploadResults.Add(result);
+						}
+					}
+				}
+			}
+			return uploadResults;
+		}
+
+		[HttpGet]
+		[Route("GetJob")]
+		public async Task<string> GetJob(string jobId)
+		{
+			string uri = $"/services/async/{_apiVersion}/job";
+			if (oAuthResponseObject == null)
+				await GetAuthToken();
+			using (var request = new HttpRequestMessage(new HttpMethod("GET"), $"{_site}{uri}/{jobId}"))
+			{
+				request.Headers.TryAddWithoutValidation("X-SFDC-Session", oAuthResponseObject.access_token);
+				request.Headers.TryAddWithoutValidation("Content-Type", "application/xml; charset=UTF-8");
+				HttpResponseMessage response = client.SendAsync(request).Result;
+				var result = response.Content.ReadAsStringAsync().Result;
+				return result;
+			}
+		}
+
+		private string SqlCommandFromObjectName(string objectName)
+		{
+			var model = new Upload();
+			if (model.SalesforceObjectNames.Contains(objectName))
+				return string.Format("EXEC {0} @Date, @Offset, @BatchSize", objectName);
+			throw new ArgumentException("Is someone trying to do SQL injection attack?");
+		}
+
+		private void LogEvent(string message, Exception ex = null)
+		{
+			if (ex == null)
+				Logger.LogAction(message, User.Identity.Name, true, logUrl);
+			else
+				Logger.LogException(message, ex, User.Identity.Name, true, logUrl);
+		}
+	}
+}
