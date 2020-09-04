@@ -118,14 +118,7 @@
 			{
 				request.Headers.TryAddWithoutValidation("X-SFDC-Session", oAuthResponseObject.access_token);
 				request.Headers.TryAddWithoutValidation("Content-Type", "application/xml; charset=UTF-8");
-				request.Content = new StringContent($"<?xml version='1.0' encoding='UTF-8'?>" +
-																						$"<jobInfo xmlns='{_jobInfoUrl}'>" +
-																						$"<operation>{operation}</operation>" +
-																						$"<object>{salesforceObject}</object>" +
-																						$"<externalIdFieldName>{externalId}</externalIdFieldName>" +
-																						$"<contentType>{contentType}</contentType>" +
-																						$"</jobInfo>", Encoding.UTF8, "application/xml");
-
+				request.Content = new StringContent($"<?xml version='1.0' encoding='UTF-8'?>" + [removed]
 				HttpResponseMessage response = client.SendAsync(request).Result;
 				var result = response.Content.ReadAsStringAsync().Result;
 
