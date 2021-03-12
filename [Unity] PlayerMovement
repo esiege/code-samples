@@ -36,6 +36,11 @@ public class PlayerMovement : MonoBehaviour
     void Start()
     {
         characterController = GetComponentInParent<UnityEngine.CharacterController>();
+        if (characterController == null)
+        {
+            gameObject.AddComponent<CharacterController>();
+            characterController = GetComponentInParent<UnityEngine.CharacterController>();
+        }
     }
 
     void Update()
