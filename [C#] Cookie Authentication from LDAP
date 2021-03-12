@@ -1,15 +1,20 @@
 
+                
+                //set domain string assembly
                 string connectionPrefix = "LDAP://" + LdapDomain;
-                DirectoryEntry entry = new DirectoryEntry(connectionPrefix, loginPostData.Username, loginPostData.Password);
-                object nativeObject = entry.NativeObject;
-                authenticated = true;
+                
+                //example login using - DirectoryEntry
+                    DirectoryEntry entry = new DirectoryEntry(connectionPrefix, loginPostData.Username, loginPostData.Password);
 
-                PrincipalContext anotherDomainContext = new PrincipalContext(ContextType.Domain, LdapDomain, "DC=ODFW", ContextOptions.SimpleBind, loginPostData.Username, loginPostData.Password);
+                //example login using - PrincipalContext
+                    PrincipalContext anotherDomainContext = new PrincipalContext(ContextType.Domain, LdapDomain, "DC=ODFW", ContextOptions.SimpleBind, loginPostData.Username, loginPostData.Password);
 
-                UserPrincipal user = UserPrincipal.FindByIdentity(anotherDomainContext, IdentityType.SamAccountName, loginPostData.Username);
+                //example login using - UserPrincipal
+                    UserPrincipal user = UserPrincipal.FindByIdentity(anotherDomainContext, IdentityType.SamAccountName, loginPostData.Username);
 
-                PrincipalSearchResult<Principal> searchResults = user.GetGroups();
-                List<GroupPrincipal> groupsList = searchResults.Select(result => result as GroupPrincipal).
-                            Where(group => (group != null) &&
-                                           (group.IsSecurityGroup.HasValue) &&
-                                           (group.IsSecurityGroup.Value)).ToList();
+                //example of how to get LDAP groups - List<GroupPrincipal>
+                    PrincipalSearchResult<Principal> searchResults = user.GetGroups();
+                    List<GroupPrincipal> groupsList = searchResults.Select(result => result as GroupPrincipal).
+                                Where(group => (group != null) &&
+                                               (group.IsSecurityGroup.HasValue) &&
+                                               (group.IsSecurityGroup.Value)).ToList();
