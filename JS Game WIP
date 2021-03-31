@@ -1,1 +1,14 @@
+A start to a project about little hobgoblins that follow the camera around.  The idea was to have lots of different tasks that they would do, such as chopping trees down and collecting things, but currently the only they will do is fight enemies and collect coins that are dropped.
+
+The source code is all visible from the client, just open chrome dev tools or your preferred toolkit and look for the folders -
+ Main: Main game objects and logic
+ Rendering: Three.js interpretation layer
+ Interface: A second canvas is layered on top of the main game screen that handles the UI
+ 
+
+
+Controls: Arrow keys to move sreen, blue tiles are spawners.
+
 http://particleworld.cloudapp.net/
+
+
