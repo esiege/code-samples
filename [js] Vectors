@@ -1,0 +1,33 @@
+
+var initUvs = function (vertices) {
+
+	var ret = [];
+
+	for (var i = 0; i < vertices.length; i += 4) {
+		ret.push([
+			new THREE.Vector2(0, 1),
+			new THREE.Vector2(0, 0),
+			new THREE.Vector2(1, 1)
+		]);
+		ret.push([
+			new THREE.Vector2(0, 0),
+			new THREE.Vector2(1, 0),
+			new THREE.Vector2(1, 1)
+		]);
+	};
+
+
+	return [ret];
+}
+
+var initFaces = function (vertices) {
+	var ret = [];
+
+	for (var i = 0; i < vertices.length; i += 4) {
+		ret.push(new THREE.Face3(0 + i, 2 + i, 1 + i));
+		ret.push(new THREE.Face3(2 + i, 3 + i, 1 + i));
+	};
+
+	return ret;
+
+}
