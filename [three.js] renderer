@@ -1,0 +1,235 @@
+(function () {
+	var canvas, scene, camera, renderer, controls, stats;
+	var keyboard = new THREEx.KeyboardState();
+	var clock = new THREE.Clock();
+	var scene = new THREE.Scene();
+	var raycasterHover = new THREE.Raycaster();
+	var mouse = new THREE.Vector2();
+	var keyControls = {};
+	var classUpdates = [];
+	var runtime = 0;
+	var classRuntimeTimer = 0;
+	var classUpdateInterval = 1;
+	var cameraDistance = 70;
+	var intersectsHover = [];
+
+	var readyCallbacks = [];
+	var ready = function (cb) {
+		readyCallbacks.push(cb);
+	};
+
+	var canvasDetails = {
+		frameCount: 0,
+		mouseBody: null,
+		zoom: 0
+	};
+
+	function init() {
+
+		var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
+		var VIEW_ANGLE = 12, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
+		camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+		scene.add(camera);
+
+
+		camera.position.set(cameraDistance * 0.2 - 2, cameraDistance * 0.8, cameraDistance);
+		camera.lookAt(scene.position);
+
+
+		// RENDERER
+		if (Detector.webgl)
+			renderer = new THREE.WebGLRenderer({ antialias: false, clearColor: 0x000000, clearAlpha: 0, });
+		else
+			renderer = new THREE.CanvasRenderer();
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+		canvas = document.getElementById('maincanvas');
+		canvas.appendChild(renderer.domElement);
+		// EVENTS
+		THREEx.WindowResize(renderer, camera);
+		THREEx.FullScreen.bindKey({ charCode: 'f'.charCodeAt(0) });
+
+		renderer.domElement.addEventListener('contextmenu', function (event) { event.preventDefault() }, false);
+
+		var getMouseRaycast = function (event) {
+			// raycaster click
+			var vector = new THREE.Vector3(
+				renderer.devicePixelRatio * (event.pageX - this.offsetLeft) / this.width * 2 - 1,
+				-renderer.devicePixelRatio * (event.pageY - this.offsetTop) / this.height * 2 + 1,
+				0
+			);
+
+			var pos = new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z);
+			var raycaster = new THREE.Raycaster(
+				pos,
+				vector.sub(pos).normalize()
+			);
+			raycaster.setFromCamera(mouse, camera);
+
+			var intersectsObjects = raycaster.intersectObjects(scene.children);
+
+			return intersectsObjects;
+		}
+
+		mouseLeftClickEvents.push({
+			params: {},
+			func: function (p) {
+				mouse.x = (p.event.clientX / window.innerWidth) * 2 - 1;
+				mouse.y = -(p.event.clientY / window.innerHeight) * 2 + 1;
+
+				var intersects = getMouseRaycast(p.event);
+				if (intersects.length) {
+					for (var i = 0; i < intersects.length; i++) {
+						if (intersects[i].object.clickEvent) {
+							intersects[i].object.clickEvent(intersects[i], p.event);
+							break;
+						}
+					}
+				}
+			}
+		});
+
+		mouseMoveEvents.push({
+			params: {},
+			func: function (p) {
+				mouse.x = (p.event.clientX / window.innerWidth) * 2 - 1;
+				mouse.y = -(p.event.clientY / window.innerHeight) * 2 + 1;
+
+				console.log(intersectsHover.length);
+
+				intersectsHover = getMouseRaycast(p.event);
+			}
+		});
+
+		// CONTROLS
+		//controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+		// STATS
+		stats = new Stats();
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.bottom = '0px';
+		stats.domElement.style.zIndex = 100;
+		canvas.appendChild(stats.domElement);
+		// LIGHT
+		var light = new THREE.PointLight(0xffffff);
+		light.position.set(0, 250, 0);
+		scene.add(light);
+		// FLOOR
+
+
+	}
+
+
+	var classUpdateId = 0;
+	function addClassUpdate(update, params) {
+		if (!params)
+			params = {};
+		classUpdateId++;
+		params.classUpdateId = classUpdateId;
+		classUpdates.push({ update: update, params: params });
+	}
+
+	function removeClassUpdate(update) {
+
+		var i = classUpdates.findIndex(x => x.params.classUpdateId == update.params.classUpdateId);
+
+		var updates = classUpdates.find(x => x.params.classUpdateId == update.params.classUpdateId);
+
+		if (i == -1) {
+			return;
+		}
+
+		//console.log("Removed update: " + i);
+
+		classUpdates.splice(i, 1);
+		delete update;
+	}
+
+	function update() {
+		
+		window.requestAnimationFrame(update);
+
+		if (keyControls.update)
+			keyControls.update();
+
+
+		if (intersectsHover.length) {
+			for (var i = 0; i < intersectsHover.length; i++) {
+				if (intersectsHover[i].object.hoverEvent) {
+					intersectsHover[i].object.hoverEvent(intersectsHover[i], event);
+					break;
+				}
+			}
+		}
+
+		//var classRuntimeTimer;
+		//var classUpdateInterval;
+
+		var delta = clock.getDelta();
+		runtime += delta;
+		classRuntimeTimer += delta;
+
+		//crappy loading wait timer
+		if (runtime < 1)
+			return;
+		//console.log(classUpdates.length);
+
+
+		if (typeof _EventHandler !== "undefined")
+			_EventHandler.runUpdates(delta);
+
+		for (var i = 0; i < classUpdates.length; i++) {
+			classUpdates[i].params.delta = delta;
+			classUpdates[i].update(classUpdates[i].params);
+		}
+
+		//////////////
+	}
+
+	//var renderWorker = new Worker('rendering/webworkers/render.js');
+	function render() {
+		window.requestAnimationFrame(render);
+		canvasDetails.frameCount++;
+		stats.update();
+		//renderWorker.postMessage([123, 456, scene.children]);
+
+
+		// raycaster hover
+		//raycasterHover.setFromCamera(mouse, camera);
+		//var intersects = raycasterHover.intersectObjects(scene.children);
+
+		//canvasDetails.mouseBodies = [];
+		//if (canvasDetails.frameCount > 10) {
+		//	for (var i = 0; i < intersects.length; i++) {
+		//		canvasDetails.mouseBodies.push(intersects[i].object);
+		//	}
+		//}
+		renderer.render(scene, camera);
+	}
+
+	init();
+	update();
+	render();
+
+
+	ready = function (cb) {
+		cb();
+	};
+
+	for (var i = 0; i < readyCallbacks.length; i++) {
+		readyCallbacks[i]();
+	}
+
+
+	window._Canvas = {
+		scene: scene,
+		keyControls: keyControls,
+		ready: ready,
+		renderer: renderer,
+		addClassUpdate: addClassUpdate,
+		removeClassUpdate: removeClassUpdate,
+		camera: camera,
+		cameraDistance: cameraDistance,
+		canvasDetails: canvasDetails,
+	}
+})(); 
