@@ -2,7 +2,8 @@
 
 	var loader = new THREE.ImageLoader();
 	
-        //cache all images, textures, and materials loaded into memory a.k.a. these arrays
+        //cache all images, textures, and materials loaded into memory a.k.a. these arrays\
+	//this drastically increases performance in re-used images
 	var images = [];
 	var textures = [];
 	var materials = [];
