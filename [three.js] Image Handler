@@ -1,9 +1,11 @@
 (function () {
 
+	var loader = new THREE.ImageLoader();
+	
+        //cache all images, textures, and materials loaded into memory a.k.a. these arrays
 	var images = [];
 	var textures = [];
 	var materials = [];
-	var loader = new THREE.ImageLoader();
 
 	var getImage = function (imagePath) {
 		if (!images[imagePath]) {
