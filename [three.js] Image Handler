@@ -1,0 +1,41 @@
+(function () {
+
+	var images = [];
+	var textures = [];
+	var materials = [];
+	var loader = new THREE.ImageLoader();
+
+	var getImage = function (imagePath) {
+		if (!images[imagePath]) {
+			images[imagePath] = loader.load(imagePath);
+		}
+
+		return images[imagePath];
+	}
+
+	var getTexture = function (imagePath) {
+		if (!textures[imagePath]) {
+			var image = getImage(imagePath);
+			textures[imagePath] = new THREE.Texture(image);
+			textures[imagePath].needsUpdate = true;
+		}
+		var ret = textures[imagePath].clone();
+		ret.needsUpdate = true;
+		return textures[imagePath];
+	}
+
+	var getSpriteMaterial = function (imagePath) {
+		if (!materials[imagePath]) {
+			var texture = getTexture(imagePath);
+			materials[imagePath] = new THREE.SpriteMaterial({ map: texture, color: 0xffffff });
+		}
+
+		return materials[imagePath];
+	}
+
+	window._ImageHandler = {
+		getImage: getImage,
+		getTexture: getTexture,
+		getSpriteMaterial: getSpriteMaterial,
+	}
+})();
