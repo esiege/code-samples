@@ -1,0 +1,150 @@
+List_Instruments = Accordion, Bagpipe, Banjo, Bass drum, Bass guitar, Bell, Bongo drum, Bugle, Castanets, Cello, Clarinet, Concertina, Conga, Cornet, Cymbal, Double bass, Drums, Electric guitar, Flute, French horn, Glockenspiel, Gong, Grand piano, Guitar, Harmonica, Harp, Keyboard, Mandolin, Maracas, Marimba, Microphone, Oboe, Organ, Pan flute, Piano, Recorder, Saxophone, Sitar, Snare drum, Tambourine, Timpani, Triangle, Trombone, Trumpet, Tuba, Ukulele, Vibraphone, Violin, Xylophone, Zither
+
+List_Styles = Environmental, Concept Art, Illustration, Atmospheric, Volumetric lighting, Epic composition, Sketch, Key Art, Blurry dashcam footage, golden ratio, Symmetrical, octane render, 3d print, unreal, tarot card with ornate border frame, isometric, manga, anime, hand drawn, render, microscopic, hand drawn, insanely detailed, full color manga illustration, clean linework, finely detailed, vibrant colors, visual contrast, in the style of the simpsons sketch, in the style of rick and morty
+
+List_Themes = magical, fantasy, fantastical, horror, gothic, Satanic, Mysterious, Heavenly, cyberpunk, marvelous, intricate, detailed, funky, modern, fat, happy, disgusting, dreamlike, perfect, intricate, colorful, 90's movie poster, 80's movie poster, photoshoot, 
+
+List_Colors = AliceBlue, AntiqueWhite, Aqua, Aquamarine, Azure, Beige, Bisque, Black, BlanchedAlmond, Blue, BlueViolet, Brown, BurlyWood, CadetBlue, Chartreuse, Chocolate, Coral, CornflowerBlue, Cornsilk, Crimson, Cyan, DarkBlue, DarkCyan, DarkGoldenrod, DarkGray, DarkGreen, DarkGrey, DarkKhaki, DarkMagenta, DarkOliveGreen, DarkOrange, DarkOrchid, DarkRed, DarkSalmon, DarkSeaGreen, DarkSlateBlue, DarkSlateGray, DarkSlateGrey, DarkTurquoise, DarkViolet, DeepPink, DeepSkyBlue, DimGray, DodgerBlue, FireBrick, FloralWhite, ForestGreen, Fuchsia, Gainsboro, GhostWhite, Gold, Goldenrod, Gray, Green, GreenYellow, Grey, Honeydew, HotPink, IndianRed, Indigo, Ivory, Khaki, Lavender, LavenderBlush, LawnGreen, LemonChiffon, LightBlue, LightCoral, LightCyan, LightGoldenrodYellow, LightGray, LightGreen, LightGrey, LightPink, LightSalmon, LightSeaGreen, LightSkyBlue, LightSlateGray, LightSlateGrey, LightSteelBlue, LightYellow, Lime, LimeGreen, Linen, Magenta, Maroon, MediumAquamarine, MediumBlue, MediumOrchid, MediumPurple, MediumSeaGreen, MediumSlateBlue, MediumSpringGreen, MediumTurquoise, MediumVioletRed, MidnightBlue, MintCream, MistyRose, Moccasin, NavajoWhite, Navy, OldLace, Olive, OliveDrab, Orange, OrangeRed, Orchid, PaleGoldenrod, PaleGreen, PaleTurquoise, PaleVioletRed, PapayaWhip, PeachPuff, Peru, Pink, Plum, PowderBlue, Purple, Rebeccapurple, Red, RosyBrown, RoyalBlue, SaddleBrown, Salmon, SandyBrown, SeaGreen, Seashell, Sienna, Silver, SkyBlue, SlateBlue, SlateGray, SlateGrey, Snow, SpringGreen, SteelBlue, Tan, Teal, Thistle, Tomato, Turquoise, Violet, Wheat, White, WhiteSmoke, Yellow, YellowGreen
+
+
+List_Stuff = Rainbow, Bloodborne, Winterland, Cotton Candy, Rock and Roll, Mandelbulb, Eyeball, Brain, Octopus, Castle, Meat, Skeleton, Cthulu, Video Game, Fat Man, technical blueprint, atlas, map, mushroom, RuPaul's drag race, lovecraft, flames, tentacles, skeleton, bone, darkness, RPG, demon, angel, pigman, abbath, king, apocolypse, jupitur, saturn, galaxy, milkyway, electricity, quantum physics, chemistry, alchemy, thurmaturgy, wizard, warlock, necromancer, dragon, ogre, orc, troll, enchanter, mystic, summoning circle, portal, cloud, teeth, balloon, chemistry, potion, role playing game, 
+
+List_Images = https://mj-gallery.com/c5d6fd49-3b66-4cd6-b8d7-7b9ae6e81ba4/grid_0.png, https://mj-gallery.com/dac795fc-fd01-4834-a42d-6ea290859135/grid_0.png, https://mj-gallery.com/01e55767-cde9-4600-8402-641298be314c/grid_0.png, https://mj-gallery.com/4ba47ba8-d432-4c08-8a96-ac923fc0a9d0/grid_0.png, https://mj-gallery.com/c5d6fd49-3b66-4cd6-b8d7-7b9ae6e81ba4/grid_0.png, https://mj-gallery.com/59ab6e5e-7d29-45c4-b8f4-5c3e8695f056/grid_0.png, https://mj-gallery.com/02698153-cb81-49a5-852f-05ded36335b2/grid_0.png, https://mj-gallery.com/945e23d8-c433-4250-a749-887acade4fa1/grid_0.png, https://mj-gallery.com/a695445e-f072-4713-8ae3-7e9e37d04b99/grid_0.png, https://mj-gallery.com/51637aaa-846e-4b02-9802-7b350c461156/grid_0.png, https://mj-gallery.com/021df369-bc48-453d-84d7-5a34b2efdb36/grid_0.png, https://mj-gallery.com/2a8c1374-f967-4fb4-9a14-7457cc4e9da4/grid_0.png, https://mj-gallery.com/12741fde-2181-4064-ae0a-d82c9aba11a3/grid_0.png, https://mj-gallery.com/d4792375-9904-4fec-82d1-92c2bf63a4c0/grid_0.png, https://mj-gallery.com/45c2d5ea-9042-4593-ae65-38f41f266594/grid_0.png, https://mj-gallery.com/ef069976-3b03-4c1d-b49b-967b9fac2204/grid_0.png, https://mj-gallery.com/edc77d86-0f02-477b-b935-d18f9d47e006/grid_0.png, https://mj-gallery.com/470d22d7-62ee-4500-aa4e-20502112b6d7/grid_0.png, https://mj-gallery.com/4bd72ebf-d384-47aa-8956-ef0e9dc10950/grid_0.png, https://mj-gallery.com/c96a8732-8d83-430f-9e86-114d3e5957d4/grid_0.png, https://mj-gallery.com/46b3eeeb-5b5d-4b2c-a089-ee47fb82aedf/grid_0.png, https://mj-gallery.com/98e8ad49-c647-44a3-88bb-df9fc3322171/grid_0.png, https://cdn.midjourney.com/036c46ae-a3b4-4ff6-83ab-87d9f77909fe/grid_0.png, https://cdn.midjourney.com/892fdb09-c3a2-4831-8b45-63b826708ca1/grid_0.png, https://cdn.midjourney.com/52872adf-4f2a-46af-a2a2-ce7c53fc037d/grid_0.png, https://cdn.midjourney.com/b4243909-9264-4378-be54-fbaf807519dc/grid_0.png, https://cdn.midjourney.com/058ef6d2-d559-4bf3-8fa7-d454dea7574c/grid_0.png, https://cdn.midjourney.com/c7f400d7-d22b-444d-b185-5fcc7068a618/grid_0.png, https://cdn.midjourney.com/a5c3a4df-7a20-4a2e-bb2a-d1cccf6da7e4/grid_0.png, https://cdn.midjourney.com/5e8e6888-e8c8-4679-a6c0-4ca58eb82202/grid_0.png, https://cdn.midjourney.com/aaa36569-0aa4-49ff-9f42-c83249ff35a9/grid_0.png, https://cdn.midjourney.com/ecc32869-61c5-40f7-8843-bb99df5953d9/grid_0.png
+
+
+s = % A_space
+m = ::1
+in =  in the style of
+StringSplit, element_Instruments, List_Instruments, `,
+StringSplit, element_Styles, List_Styles, `,
+StringSplit, element_Themes, List_Themes, `,
+StringSplit, element_Stuff, List_Stuff, `,
+StringSplit, element_Colors, List_Colors, `,
+StringSplit, element_Images, List_Images, `,
+
+F12::
+
+
+	Random, RandomNum, 1, %element_Instruments0%
+	Text = % s element_Instruments%RandomNum% m s
+	
+	Random, RandomNum, 1, %element_Styles0%
+	Text =  % Text element_Styles%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Themes0%
+	Text =  % Text element_Themes%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Colors0%
+	Text =  % Text element_Colors%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Images0%
+	Text = % Text element_Images%RandomNum% s/
+	
+	MsgBox, % Text
+return
+
+F1::
+
+	Loop, 30
+	{
+
+	Random, RandomNum, 1, %element_Instruments0%
+	Text = % s element_Instruments%RandomNum% m s
+
+	Random, RandomNum, 1, %element_Styles0%
+	Text = % element_Styles%RandomNum% s
+
+	Random, RandomNum, 1, %element_Styles0%
+	Text = % Text element_Styles%RandomNum% s
+
+	Random, RandomNum, 1, %element_Themes0%
+	Text = % Text element_Themes%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Stuff0%
+	Text = % Text element_Stuff%RandomNum% s
+
+	Random, RandomNum, 1, %element_Colors0%
+	Text = % Text element_Colors%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Images0%
+	Text = % Text element_Images%RandomNum% s
+	
+	
+
+
+		send /
+		sleep 600
+		send {Tab}
+		send ^v
+		send {space}
+		sleep 100
+		send % Text
+		sleep 100
+		send {space} --q 2 --niji 
+		sleep 100
+		send {Enter}
+		sleep 1200
+		
+
+		sleep 280
+	}
+
+return
+
+
+
+F2::
+
+	Loop, 100
+	{
+
+	Random, RandomNum, 1, %element_Instruments0%
+	Text = % s element_Instruments%RandomNum% m s
+
+	Random, RandomNum, 1, %element_Styles0%
+	Text =  % element_Styles%RandomNum% s
+
+	Random, RandomNum, 1, %element_Styles0%
+	Text =  % Text element_Styles%RandomNum% s
+
+	Random, RandomNum, 1, %element_Themes0%
+	Text = % Text element_Themes%RandomNum% s
+	
+	Random, RandomNum, 1, %element_Stuff0%
+	Text = % Text element_Stuff%RandomNum% s
+
+	Random, RandomNum, 1, %element_Colors0%
+	Text = % Text element_Colors%RandomNum% s
+	
+	
+	
+
+
+		send /
+		sleep 600
+		send {Tab}
+		send ^v
+		send {space}
+		sleep 100
+		send % Text
+		sleep 100
+		send {space} --q 2 --ar 2:3 --niji --no buildings
+		sleep 100
+		send {Enter}
+		sleep 1200
+		
+
+		sleep 60000
+	}
+
+return
+
+
+
+
+
+	
+	
+f8::Reload
+f10::ExitApp
+
